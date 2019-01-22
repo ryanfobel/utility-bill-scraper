@@ -142,8 +142,10 @@ plt.legend(['Off Peak', 'Mid Peak', 'On Peak', 'Total'])
 df_electricity.to_csv('Kitchener-Wilmot Hydro data.csv')
 
 # Carbon intensity of electricity generation in Ontario (40-77 g CO2 / kWh)
-# * 40 g / kWh (https://www.neb-one.gc.ca/nrg/sttstc/lctrct/rprt/2017cndrnwblpwr/ghgmssn-eng.html)
-# * 77 g / kWh (https://www.conferenceboard.ca/hcp/provincial/environment/low-emitting-electricity-production.aspx)
+# * 40 g / kWh (https://www.neb-one.gc.ca/nrg/sttstc/lctrct/rprt/
+#               2017cndrnwblpwr/ghgmssn-eng.html)
+# * 77 g / kWh (https://www.conferenceboard.ca/hcp/provincial/environment/
+#               low-emitting-electricity-production.aspx)
 # * This is likely to go up when Pickering is closed
 #   https://www.opg.com/darlington-refurbishment/Documents/IntrinsikReport_GHG_OntarioPower.pdf
 
@@ -178,6 +180,3 @@ print('monthly gas offset: $%.2f' % (
 print('total monthly offset: $%.2f' % (
     df_electricity['Total Consumption'].mean() * 0.025 +
     df_gas['Gas Consumption'].mean() * 0.15))
-# -
-
-

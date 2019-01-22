@@ -12,6 +12,8 @@ def is_number(s):
 
 
 def format_fields(input_list):
+    """Strip newlines and trailing colons from fields and convert numbers to
+    floats."""
     fields = [x.rstrip().strip(':') for x in input_list
               if x.find('</br>') == -1]
     return [float(x) if is_number(x) else x for x in fields]
@@ -34,6 +36,11 @@ def is_kitchener_wilmot_hydro_bill(soup):
 
 
 def process_pdf(pdf_file, rename=False, keep_html=False):
+    """Extract data from a pdf file and return a nested Python dictionary.
+    Optionally rename the pdf with the format:
+        YYYY-MM-DD-UTILITY_NAME-$XX.xx.pdf
+    If the `keep_html` flag is True, the intermediate html fill will be
+    maintained."""
     basename, ext = os.path.splitext(pdf_file)
     basepath = os.path.dirname(pdf_file)
     html_file = basename + '.html'
@@ -100,6 +107,8 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
 
 
 def convert_data_to_df(data):
+    """Convert the list of dictionaries (returned from `process_pdf`) into a
+    dictionary of pandas DataFrames keyed by utility name."""
     result = {}
 
     for x in data:
