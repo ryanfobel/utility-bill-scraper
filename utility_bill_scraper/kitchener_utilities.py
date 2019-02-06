@@ -22,7 +22,28 @@ def get_summary(soup):
         find_account_summary)[0].contents)
     summary_data = format_fields(soup.find_all(
         find_seq_id)[0].next_sibling.contents[0].contents)
-    return dict(zip(summary_fields[1:], summary_data))
+
+    summary_dict = dict(zip(summary_fields[1:], summary_data))
+
+    def find_charges(name):
+        def find_matching_div(tag):
+            return tag.name == u'div' and tag.decode().find(
+                name) >= 0
+
+        tag = soup.find(find_matching_div)
+
+        # extract the top pixel coordinate
+        match = re.search('top:(?P<top>\d+)px', tag.decode())
+        top = match.groups()[0]
+        
+        # find the second div with the same top pixel coordinate
+        return format_fields(soup.find_all(
+            style=re.compile('top:%spx' % top))[1].span.contents)[0]
+
+    summary_dict[u'Water Charges'] = find_charges('Water charges')
+    summary_dict[u'Gas Charges'] = find_charges('Gas charges')
+    
+    return summary_dict
 
 
 def get_water_consumption(soup):
