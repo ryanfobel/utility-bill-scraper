@@ -58,6 +58,7 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
         os.remove(html_file)
 
     result = None
+    new_name = None
 
     if (is_kitchener_utilities_bill(soup)):
         import kitchener_utilities as ku
@@ -100,7 +101,7 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
     else:
         print("Unrecognized bill type.")
 
-    if rename:
+    if rename and new_name:
         os.rename(pdf_file, os.path.join(basepath, new_name))
 
     return result
