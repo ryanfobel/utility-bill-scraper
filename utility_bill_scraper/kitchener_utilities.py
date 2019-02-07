@@ -2,6 +2,7 @@ import re
 
 import arrow
 import pandas as pd
+import numpy as np
 
 from utility_bill_scraper import format_fields, is_number
 
@@ -32,11 +33,11 @@ def get_summary(soup):
 
         tag = soup.find(find_matching_div)
 
-        # extract the top pixel coordinate
+        # Extract the top pixel coordinate.
         match = re.search('top:(?P<top>\d+)px', tag.decode())
         top = match.groups()[0]
 
-        # find the second div with the same top pixel coordinate
+        # Find the second div with the same top pixel coordinate.
         return format_fields(soup.find_all(
             style=re.compile('top:%spx' % top))[1].span.contents)[0]
 
@@ -53,15 +54,15 @@ def get_water_consumption(soup):
 
     div_list = soup.find_all(find_total_consumption)
 
-    # find the div containing 3 fields (gas has an extra
-    # 'Billing Conversion Multiplier')
+    # Find the div containing 3 fields (gas has an extra
+    # 'Billing Conversion Multiplier').
     tag = [x for x in div_list if len(format_fields(x.contents[0])) == 3][0]
 
-    # extract the top pixel coordinate
+    # Extract the top pixel coordinate.
     match = re.search('top:(?P<top>\d+)px', tag.decode())
     top = match.groups()[0]
 
-    # match all divs with the same top pixel coordinate
+    # Match all divs with the same top pixel coordinate.
     def find_matching_top(tag):
         return tag.name == u'div' and tag.decode().find('top:%spx' % top) >= 0
 
@@ -117,15 +118,15 @@ def get_gas_consumption(soup):
 
     div_list = soup.find_all(find_total_consumption)
 
-    # find the div containing 4 fields (gas has an extra
-    # 'Billing Conversion Multiplier')
+    # Find the div containing 4 fields (gas has an extra
+    # 'Billing Conversion Multiplier').
     tag = [x for x in div_list if len(format_fields(x.contents[0])) > 3][0]
 
-    # extract the top pixel coordinate
+    # Extract the top pixel coordinate.
     match = re.search('top:(?P<top>\d+)px', tag.decode())
     top = match.groups()[0]
 
-    # match all divs with the same top pixel coordinate
+    # Match all divs with the same top pixel coordinate.
     def find_matching_top(tag):
         return tag.name == u'div' and tag.decode().find('top:%spx' % top) >= 0
 
@@ -135,7 +136,7 @@ def get_gas_consumption(soup):
 
 
 def get_gas_charges(soup):
-    # Find the bounding box that defines the gas section
+    # Find the bounding box that defines the gas section.
     pos_re = ('left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*'
               'width:(?P<width>\d+)px.*height:(?P<height>\d+)')
 
@@ -155,7 +156,7 @@ def get_gas_charges(soup):
     pos = re.search(pos_re, tag.decode()).groupdict()
     bottom_bound = int(pos['top'])
 
-    # Find all of the div tags within this bounding box
+    # Find all of the div tags within this bounding box.
     def find_divs_within_bounds(tag):
         match = re.search(pos_re, tag.decode())
         if match:
@@ -227,19 +228,34 @@ def convert_data_to_df(data):
                         for x in df['Issue Date']]
     df = df.set_index('Issue Date')
 
-    # extract water and gas consumption
+    # Extract water and gas consumption.
     water_consumption = [x['water consumption']['Total Consumption']
                          if 'Total Consumption' in x['water consumption']
                          else None for x in data]
     gas_consumption = [x['gas consumption']['Total Consumption']
                        if 'Total Consumption' in x['gas consumption']
                        else None for x in data]
-    gas_fixed_delivery_charge = [x['gas charges']['Gas Fixed Delivery Charge']
-                                 if 'Gas Fixed Delivery Charge'
-                                 in x['gas charges'] else None for x in data]
+    gas_fixed_charge = [x['gas charges']['Gas Fixed Delivery Charge']
+                        if 'Gas Fixed Delivery Charge'
+                        in x['gas charges'] else None for x in data]
 
     df['Water Consumption'] = water_consumption
     df['Gas Consumption'] = gas_consumption
-    df['Gas Fixed Delivery Charge'] = gas_fixed_delivery_charge
+
+    # Figure out the sales tax rate.
+    sales_tax_on_gas = [x['gas charges']['HST on Gas']
+                        if 'HST on Gas'
+                        in x['gas charges'] else None for x in data]
+    sales_tax_rate = df['Gas Charges'] / (
+        df['Gas Charges'] - sales_tax_on_gas) - 1
+
+    # Adjust the fixed charge by the sales tax
+    df['Gas Fixed Charges'] = np.round(gas_fixed_charge * (
+        1 + sales_tax_rate), 2)
+
+    # Calculate the variable charge and rate.
+    df['Gas Variable Charges'] = df['Gas Charges'] - df['Gas Fixed Charges']
+    df['Gas Variable Rate'] = (df['Gas Variable Charges'] /
+                               df['Gas Consumption'])
 
     return df
