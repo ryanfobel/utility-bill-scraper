@@ -35,14 +35,14 @@ def get_summary(soup):
         # extract the top pixel coordinate
         match = re.search('top:(?P<top>\d+)px', tag.decode())
         top = match.groups()[0]
-        
+
         # find the second div with the same top pixel coordinate
         return format_fields(soup.find_all(
             style=re.compile('top:%spx' % top))[1].span.contents)[0]
 
     summary_dict[u'Water Charges'] = find_charges('Water charges')
     summary_dict[u'Gas Charges'] = find_charges('Gas charges')
-    
+
     return summary_dict
 
 
@@ -135,23 +135,58 @@ def get_gas_consumption(soup):
 
 
 def get_gas_charges(soup):
-    def find_gas_rates(tag):
+    # Find the bounding box that defines the gas section
+    pos_re = ('left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*'
+              'width:(?P<width>\d+)px.*height:(?P<height>\d+)')
+
+    def find_gas_section(tag):
         return tag.name == u'div' and tag.decode().find(
-            'Gas Fixed Delivery Charge') >= 0
+            'GAS') >= 0
 
-    gas_div = soup.find_all(find_gas_rates)[0]
+    tag = soup.find(find_gas_section)
+    pos = re.search(pos_re, tag.decode()).groupdict()
+    top_bound = int(pos['top'])
 
-    gas_fields = format_fields(gas_div.contents[0])
-    result = {u'Time period': gas_fields[0]}
+    def find_gas_charges(tag):
+        return tag.name == u'div' and tag.decode().find(
+            'Gas charges') >= 0
 
-    gas_fields = gas_fields[1:]
-    gas_rates = format_fields(gas_div.next_sibling.next_sibling.next_sibling.
-                              contents[0])
-    gas_charges = format_fields(gas_div.next_sibling.next_sibling.
-                                next_sibling.next_sibling.contents[0])
+    tag = soup.find(find_gas_charges)
+    pos = re.search(pos_re, tag.decode()).groupdict()
+    bottom_bound = int(pos['top'])
 
-    result.update(dict(zip(gas_fields, gas_charges)))
-    return result
+    # Find all of the div tags within this bounding box
+    def find_divs_within_bounds(tag):
+        match = re.search(pos_re, tag.decode())
+        if match:
+            top = int(match.groupdict()['top'])
+            return (top >= top_bound and top < bottom_bound and
+                    tag.name == u'div')
+        return False
+
+    df = pd.DataFrame()
+    for x in soup.find_all(find_divs_within_bounds):
+        pos = re.search(pos_re, x.decode()).groupdict()
+        df = df.append(pd.DataFrame(dict(left=int(pos['left']),
+                                         top=int(pos['top']),
+                                         width=int(pos['width']),
+                                         height=int(pos['height']),
+                                         fields=[format_fields(
+                                             x.span.contents)])))
+
+    df['right'] = df['left'] + df['width']
+    df['fields_str'] = [str(x) for x in df['fields']]
+    df = df.sort_values(['top', 'left'])
+
+    # Charges can be grouped in different sections (e.g., if the gas rate
+    # changes in the middle of the month). We only care about the last
+    # section, because it contains the Fixed Delivery Charge.
+    charges = df[df['left'] > df[df['fields_str'] == "[u'Charges']"]['left']
+                 .iloc[0]].iloc[-1]['fields']
+    charge_desc = df[df['fields_str'].str.find(' days') >= 0] \
+        .iloc[-1]['fields'][1:]
+
+    return dict(zip(charge_desc[-len(charges):], charges))
 
 
 def get_gas_rates(soup):
@@ -199,7 +234,12 @@ def convert_data_to_df(data):
     gas_consumption = [x['gas consumption']['Total Consumption']
                        if 'Total Consumption' in x['gas consumption']
                        else None for x in data]
+    gas_fixed_delivery_charge = [x['gas charges']['Gas Fixed Delivery Charge']
+                                 if 'Gas Fixed Delivery Charge'
+                                 in x['gas charges'] else None for x in data]
+
     df['Water Consumption'] = water_consumption
     df['Gas Consumption'] = gas_consumption
+    df['Gas Fixed Delivery Charge'] = gas_fixed_delivery_charge
 
     return df
