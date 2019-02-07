@@ -88,7 +88,7 @@ df_gas.to_csv('Kitchener Utilities data.csv')
 kgCO2_per_cubic_meter = 119.58 * (1 / 2.204623) * \
     (1 / (0.0254 * 12)**3) / 1000  # kg CO2/1 m^3 natural gas
 
-gas_variable_rate = 0.068371 + 0.135000  # $ / m^3
+gas_variable_rate = df_gas['Gas Variable Rate'].iloc[-12:].mean()  # $ / m^3
 
 # Natural gas energy density
 # 1,037 Btu / ft^3 (https://www.eia.gov/tools/faqs/faq.php?id=45&t=8)
@@ -101,12 +101,12 @@ kwh_per_joule = 1.0 / (60 * 60 * 1000)
 kwh_per_cubic_meter = joules_per_cubic_meter * kwh_per_joule
 
 # Energy use
-energy_use_joules = df_gas['Gas Consumption'].sum() * joules_per_cubic_meter
-energy_use_kwh = df_gas['Gas Consumption'].sum() * kwh_per_cubic_meter
+energy_use_joules = df_gas['Gas Consumption'].iloc[-12:].sum() * joules_per_cubic_meter
+energy_use_kwh = df_gas['Gas Consumption'].iloc[-12:].sum() * kwh_per_cubic_meter
 
 furnace_efficiency = 0.95
 
-print('annual gas usage: %.1f m^3' % (df_gas['Gas Consumption'].sum()))
+print('annual gas usage: %.1f m^3' % (df_gas['Gas Consumption'].iloc[-12:].sum()))
 print('annual heating energy usage: %.1f GJ (%.1f kWh)' % (
     energy_use_joules / 1e9, energy_use_kwh))
 print('carbon intensity (heating): %d g CO2 / kWh' % (
@@ -117,11 +117,11 @@ print('heating energy per m^3 natural gas (%d%% efficient furnace):'
 print('gas heating cost: $%.3f / kWh' % (
     gas_variable_rate / kwh_per_cubic_meter))
 print('annual CO2 emissions from natural gas: %.1f kg' % (
-    df_gas['Gas Consumption'].sum() * kgCO2_per_cubic_meter))
-print('annual cost for natural gas: $%.2f' % (
-    df_gas['Gas Consumption'].sum() * gas_variable_rate))
-
-df_gas
+    df_gas['Gas Consumption'].iloc[-12:].sum() * kgCO2_per_cubic_meter))
+print('annual cost for natural gas: $%.2f (Fixed: $%.2f, Variable $%.2f)' % (
+    df_gas['Gas Charges'].iloc[-12:].sum(),
+    df_gas['Gas Fixed Charges'].iloc[-12:].sum(),
+    df_gas['Gas Variable Charges'].iloc[-12:].sum()))
 # -
 
 # # Electricity
@@ -151,10 +151,10 @@ df_electricity.to_csv('Kitchener-Wilmot Hydro data.csv')
 
 cabron_intensity_kgCO2_per_kwh = .077
 print('annual electricity usage: %.1f kWh' % (
-    df_electricity['Total Consumption'].sum()))
-print('annual electricity cost: $%.2f' % (df_electricity['Amount Due'].sum()))
+    df_electricity['Total Consumption'].iloc[-12:].sum()))
+print('annual electricity cost: $%.2f' % (df_electricity['Amount Due'].iloc[-12:].sum()))
 print('annual CO2 emissions from electricity: %.2f kg' % (
-    df_electricity['Total Consumption'].sum() *
+    df_electricity['Total Consumption'].iloc[-12:].sum() *
     cabron_intensity_kgCO2_per_kwh))
 
 df_electricity
@@ -167,16 +167,16 @@ df_electricity
 
 # +
 print('monthly electricity usage: %.1f kWh (avg), %.1f kWh (max)' % (
-    df_electricity['Total Consumption'].mean(),
-    df_electricity['Total Consumption'].max()))
+    df_electricity['Total Consumption'].iloc[-12].mean(),
+    df_electricity['Total Consumption'].iloc[-12].max()))
 
 print('monthly gas usage: %.1f m^3 (avg), %.1f m^3 (max)' % (
-    df_gas['Gas Consumption'].mean(), df_gas['Gas Consumption'].max()))
+    df_gas['Gas Consumption'].iloc[-12].mean(), df_gas['Gas Consumption'].iloc[-12].max()))
 
 print('\nmonthly electricity offset: $%.2f' % (
-    df_electricity['Total Consumption'].mean() * 0.025))
+    df_electricity['Total Consumption'].iloc[-12].mean() * 0.025))
 print('monthly gas offset: $%.2f' % (
-    df_gas['Gas Consumption'].mean() * 0.15))
+    df_gas['Gas Consumption'].iloc[-12].mean() * 0.15))
 print('total monthly offset: $%.2f' % (
-    df_electricity['Total Consumption'].mean() * 0.025 +
-    df_gas['Gas Consumption'].mean() * 0.15))
+    df_electricity['Total Consumption'].iloc[-12].mean() * 0.025 +
+    df_gas['Gas Consumption'].iloc[-12].mean() * 0.15))
