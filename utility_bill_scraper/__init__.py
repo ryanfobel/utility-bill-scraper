@@ -1,3 +1,4 @@
+import re
 import os
 import subprocess
 
@@ -17,6 +18,27 @@ def format_fields(input_list):
     fields = [x.rstrip().strip(':') for x in input_list
               if x.find('</br>') == -1]
     return [float(x) if is_number(x) else x for x in fields]
+
+
+def convert_divs_to_df(divs):
+    """Convert list of divs to a pandas DataFrame describing the position and
+    geomtery of each tag."""
+    pos_re = ('left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*'
+              'width:(?P<width>\d+)px.*height:(?P<height>\d+)')
+
+    df = pd.DataFrame()
+    for x in divs:
+        pos = re.search(pos_re, x.decode()).groupdict()
+        df = df.append(pd.DataFrame(dict(left=int(pos['left']),
+                                         top=int(pos['top']),
+                                         width=int(pos['width']),
+                                         height=int(pos['height']),
+                                         fields=[format_fields(
+                                             x.span.contents)])))
+
+    df['right'] = df['left'] + df['width']
+    df['bottom'] = df['top'] + df['height']
+    return df
 
 
 def is_kitchener_utilities_bill(soup):

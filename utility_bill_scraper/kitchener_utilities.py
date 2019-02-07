@@ -4,7 +4,7 @@ import arrow
 import pandas as pd
 import numpy as np
 
-from utility_bill_scraper import format_fields, is_number
+from utility_bill_scraper import format_fields, is_number, convert_divs_to_df
 
 
 def get_name():
@@ -165,17 +165,7 @@ def get_gas_charges(soup):
                     tag.name == u'div')
         return False
 
-    df = pd.DataFrame()
-    for x in soup.find_all(find_divs_within_bounds):
-        pos = re.search(pos_re, x.decode()).groupdict()
-        df = df.append(pd.DataFrame(dict(left=int(pos['left']),
-                                         top=int(pos['top']),
-                                         width=int(pos['width']),
-                                         height=int(pos['height']),
-                                         fields=[format_fields(
-                                             x.span.contents)])))
-
-    df['right'] = df['left'] + df['width']
+    df = convert_divs_to_df(soup.find_all(find_divs_within_bounds))
     df['fields_str'] = [str(x) for x in df['fields']]
     df = df.sort_values(['top', 'left'])
 
