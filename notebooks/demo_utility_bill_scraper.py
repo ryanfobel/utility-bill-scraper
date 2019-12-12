@@ -5,12 +5,12 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.3'
-#       jupytext_version: 0.8.6
+#       format_version: '1.4'
+#       jupytext_version: 1.2.4
 #   kernelspec:
-#     display_name: Python 2
+#     display_name: Python 3
 #     language: python
-#     name: python2
+#     name: python3
 # ---
 
 # # Introduction
@@ -19,6 +19,7 @@
 # (pdfs). Currently, this library supports:
 #
 # * [Kitchener Utilities (gas & water)](https://www.kitchenerutilities.ca)
+# * [Enbridge (gas)](enbridgegas.com)
 # * [Kitchener-Wilmot Hydro (electricity)](https://www.kwhydro.on.ca)
 
 # +
@@ -29,6 +30,7 @@ import subprocess
 import os
 from glob import glob
 
+import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 
@@ -50,7 +52,7 @@ data = []
 print('Scrape data from the following pdf files:')
 for pdf_file in bills_list:
     print('  %s' % pdf_file)
-    result = process_pdf(pdf_file)
+    result = process_pdf(pdf_file, rename=True)
     if result:
         data.append(result)
 
@@ -59,18 +61,24 @@ for pdf_file in bills_list:
 df = convert_data_to_df(data)
 # -
 
-# # Gas and Water
+# # Gas
 
 # +
-df_gas = df['Kitchener Utilities']
+try:
+    df_gas = df['Kitchener Utilities']
+    df_gas.to_csv('Kitchener Utilities data.csv')
+except NameError:
+    df_gas = pd.read_csv('Kitchener Utilities data.csv').set_index('Issue Date')
 
-plt.figure()
-df_gas['Gas & Water Charges'].plot()
-plt.title('Gas & Water Charges')
-plt.ylabel('\$')
-
+try:
+    df_gas_442_jones = df['Enbridge']
+    df_gas_442_jones.to_csv('Enbridge data.csv')
+except NameError:
+    df_gas_442_jones = pd.read_csv('Enbridge data.csv').set_index('Issue Date')
+    
 plt.figure()
 df_gas['Gas Consumption'].plot()
+df_gas_442_jones['Adjusted volume'].plot()
 plt.title('Gas Consumption')
 plt.ylabel('m$^3$')
 
@@ -78,8 +86,6 @@ plt.figure()
 df_gas['Water Consumption'].plot()
 plt.title('Water Consumption')
 plt.ylabel('m$^3$')
-
-df_gas.to_csv('Kitchener Utilities data.csv')
 
 # Natural gas emission factor
 # 119.58 lbs CO2/1000 cubic feet of natural gas
@@ -180,3 +186,5 @@ print('monthly gas offset: $%.2f' % (
 print('total monthly offset: $%.2f' % (
     df_electricity['Total Consumption'].iloc[-12].mean() * 0.025 +
     df_gas['Gas Consumption'].iloc[-12].mean() * 0.15))
+# -
+
