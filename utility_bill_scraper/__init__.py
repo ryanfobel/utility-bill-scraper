@@ -57,6 +57,14 @@ def is_kitchener_wilmot_hydro_bill(soup):
     return len(soup.find_all(find_kitchener_wilmot_hydro)) > 0
 
 
+def is_enbridge_gas_bill(soup):
+    """Check if this is an Enbridge Gas bill."""
+    def find_enbridge_gas(tag):
+        return tag.name == u'span' and tag.decode().find(
+            'Enbridge Gas Distribution Inc.') >= 0
+    return len(soup.find_all(find_enbridge_gas)) > 0
+
+
 def process_pdf(pdf_file, rename=False, keep_html=False):
     """Extract data from a pdf file and return a nested Python dictionary.
     Optionally rename the pdf with the format:
@@ -107,6 +115,19 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
                   'gas consumption': ku.get_gas_consumption(soup),
                   'gas charges': ku.get_gas_charges(soup),
                   'gas rates': ku.get_gas_rates(soup)}
+    elif (is_enbridge_gas_bill(soup)):
+        import enbridge as en
+
+        summary = en.get_summary(soup)
+
+        new_name = '%s-%s-$%s.pdf' % (
+            arrow.get(summary[u'Bill Date'],
+                      'MMM DD, YYYY').format('YYYY-MM-DD'),
+            en.get_name(),
+            summary[u'Amount Due'])
+
+        result = {'name': en.get_name(),
+                  'summary': summary}
     elif (is_kitchener_wilmot_hydro_bill(soup)):
         import kitchener_wilmot_hydro as kwh
 
@@ -140,6 +161,9 @@ def convert_data_to_df(data):
         if x['name'] == 'Kitchener Utilities':
             import kitchener_utilities as ku
             df = ku.convert_data_to_df([x])
+        elif x['name'] == 'Enbridge':
+            import enbridge as en
+            df = en.convert_data_to_df([x])
         elif x['name'] == 'Kitchener-Wilmot Hydro':
             import kitchener_wilmot_hydro as kwh
             df = kwh.convert_data_to_df([x])
