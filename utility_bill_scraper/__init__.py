@@ -15,7 +15,7 @@ def is_number(s):
 def format_fields(input_list):
     """Strip newlines and trailing colons from fields and convert numbers to
     floats."""
-    fields = [x.rstrip().strip(':') for x in input_list
+    fields = [x.strip().strip(':') for x in input_list
               if x.find('</br>') == -1]
     return [float(x) if is_number(x) else x for x in fields]
 
@@ -29,12 +29,15 @@ def convert_divs_to_df(divs):
     df = pd.DataFrame()
     for x in divs:
         pos = re.search(pos_re, x.decode()).groupdict()
-        df = df.append(pd.DataFrame(dict(left=int(pos['left']),
-                                         top=int(pos['top']),
-                                         width=int(pos['width']),
-                                         height=int(pos['height']),
-                                         fields=[format_fields(
-                                             x.span.contents)])))
+        try:
+            df = df.append(pd.DataFrame(dict(left=int(pos['left']),
+                                            top=int(pos['top']),
+                                            width=int(pos['width']),
+                                            height=int(pos['height']),
+                                            fields=[format_fields(
+                                                x.span.contents)])))
+        except AttributeError:
+            pass
 
     df['right'] = df['left'] + df['width']
     df['bottom'] = df['top'] + df['height']
