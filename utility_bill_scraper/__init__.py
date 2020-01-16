@@ -103,7 +103,7 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
             print("Couldn't find amount due!")
             amount_due = None
 
-        new_name = '%s-Kitchener utilities-$%s.pdf' % (
+        new_name = '%s-Kitchener utilities-$%.2f.pdf' % (
             arrow.get(summary['Issue Date'],
                       'MMM DD YYYY').format('YYYY-MM-DD'), amount_due)
 
@@ -133,7 +133,7 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
 
         date = kwh.get_billing_date(soup)
         amount_due = kwh.get_amount_due(soup)
-        new_name = '%s-Kitchener-Wilmot hydro-$%s.pdf' % (date, amount_due)
+        new_name = '%s-Kitchener-Wilmot hydro-$%.2f.pdf' % (date, amount_due)
 
         result = {'name': kwh.get_name(),
                   'date': date,
