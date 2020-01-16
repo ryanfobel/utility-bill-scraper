@@ -55,20 +55,26 @@ def get_water_consumption(soup):
     div_list = soup.find_all(find_total_consumption)
 
     # Find the div containing 3 fields (gas has an extra
-    # 'Billing Conversion Multiplier').
-    tag = [x for x in div_list if len(format_fields(x.contents[0])) == 3][0]
+    # 'Billing Conversion Multiplier'). Note that it is possible to have
+    # more than one consumption section.
 
-    # Extract the top pixel coordinate.
-    match = re.search('top:(?P<top>\d+)px', tag.decode())
-    top = match.groups()[0]
+    tags = [x for x in div_list if len(format_fields(x.contents[0])) == 3]
 
-    # Match all divs with the same top pixel coordinate.
-    def find_matching_top(tag):
-        return tag.name == u'div' and tag.decode().find('top:%spx' % top) >= 0
+    consumption = []
 
-    divs = [format_fields(x.contents[0]) for x in soup.find_all(
-        find_matching_top)]
-    return dict(zip(divs[0], divs[2]))
+    for tag in tags:
+        # Extract the top pixel coordinate.
+        match = re.search('top:(?P<top>\d+)px', tag.decode())
+        top = match.groups()[0]
+
+        # Match all divs with the same top pixel coordinate.
+        def find_matching_top(tag):
+            return tag.name == u'div' and tag.decode().find('top:%spx' % top) >= 0
+
+        divs = [format_fields(x.contents[0]) for x in soup.find_all(
+            find_matching_top)]
+        consumption.append(dict(zip(divs[0], divs[2])))
+    return consumption
 
 
 def get_water_and_sewer_charges(soup):
@@ -118,67 +124,74 @@ def get_gas_consumption(soup):
 
     div_list = soup.find_all(find_total_consumption)
 
-    # Find the div containing 4 fields (gas has an extra
-    # 'Billing Conversion Multiplier').
-    tag = [x for x in div_list if len(format_fields(x.contents[0])) > 3][0]
+    # Find divs containing 4 fields (gas has an extra
+    # 'Billing Conversion Multiplier'). Note that it is possible to have
+    # more than one consumption section.
+    tags = [x for x in div_list if len(format_fields(x.contents[0])) > 3]
 
-    # Extract the top pixel coordinate.
-    match = re.search('top:(?P<top>\d+)px', tag.decode())
-    top = match.groups()[0]
+    consumption = []
+    for tag in tags:
+        # Extract the top pixel coordinate.
+        match = re.search('top:(?P<top>\d+)px', tag.decode())
+        top = match.groups()[0]
 
-    # Match all divs with the same top pixel coordinate.
-    def find_matching_top(tag):
-        return tag.name == u'div' and tag.decode().find('top:%spx' % top) >= 0
+        # Match all divs with the same top pixel coordinate.
+        def find_matching_top(tag):
+            return tag.name == u'div' and tag.decode().find('top:%spx' % top) >= 0
 
-    divs = [format_fields(x.contents[0]) for x in soup.find_all(
-            find_matching_top)]
-    return dict(zip(divs[0], divs[2]))
+        divs = [format_fields(x.contents[0]) for x in soup.find_all(
+                find_matching_top)]
+
+        consumption.append(dict(zip(divs[0], divs[2])))
+    return consumption
 
 
 def get_gas_charges(soup):
-    # Find the bounding box that defines the gas section.
-    pos_re = ('left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*'
-              'width:(?P<width>\d+)px.*height:(?P<height>\d+)')
+    try:
+        # Find the bounding box that defines the gas section.
+        pos_re = ('left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*'
+                'width:(?P<width>\d+)px.*height:(?P<height>\d+)')
 
-    def find_gas_section(tag):
-        return tag.name == u'div' and tag.decode().find(
-            'GAS') >= 0
+        def find_gas_section(tag):
+            return tag.name == u'div' and tag.decode().find(
+                'GAS') >= 0
 
-    tag = soup.find(find_gas_section)
-    pos = re.search(pos_re, tag.decode()).groupdict()
-    top_bound = int(pos['top'])
+        tag = soup.find(find_gas_section)
+        pos = re.search(pos_re, tag.decode()).groupdict()
+        top_bound = int(pos['top'])
 
-    def find_gas_charges(tag):
-        return tag.name == u'div' and tag.decode().find(
-            'Gas charges') >= 0
+        def find_gas_charges(tag):
+            return tag.name == u'div' and tag.decode().find(
+                'Gas charges') >= 0
 
-    tag = soup.find(find_gas_charges)
-    pos = re.search(pos_re, tag.decode()).groupdict()
-    bottom_bound = int(pos['top'])
+        tag = soup.find(find_gas_charges)
+        pos = re.search(pos_re, tag.decode()).groupdict()
+        bottom_bound = int(pos['top'])
 
-    # Find all of the div tags within this bounding box.
-    def find_divs_within_bounds(tag):
-        match = re.search(pos_re, tag.decode())
-        if match:
-            top = int(match.groupdict()['top'])
-            return (top >= top_bound and top < bottom_bound and
-                    tag.name == u'div')
-        return False
+        # Find all of the div tags within this bounding box.
+        def find_divs_within_bounds(tag):
+            match = re.search(pos_re, tag.decode())
+            if match:
+                top = int(match.groupdict()['top'])
+                return (top >= top_bound and top < bottom_bound and
+                        tag.name == u'div')
+            return False
 
-    df = convert_divs_to_df(soup.find_all(find_divs_within_bounds))
-    df['fields_str'] = [str(x) for x in df['fields']]
-    df = df.sort_values(['top', 'left'])
+        df = convert_divs_to_df(soup.find_all(find_divs_within_bounds))
+        df['fields_str'] = [str(x) for x in df['fields']]
+        df = df.sort_values(['top', 'left'])
 
-    # Charges can be grouped in different sections (e.g., if the gas rate
-    # changes in the middle of the month). We only care about the last
-    # section, because it contains the Fixed Delivery Charge.
-    charges = df[df['left'] > df[df['fields_str'] == "[u'Charges']"]['left']
-                 .iloc[0]].iloc[-1]['fields']
-    charge_desc = df[df['fields_str'].str.find(' days') >= 0] \
-        .iloc[-1]['fields'][1:]
-
-    return dict(zip(charge_desc[-len(charges):], charges))
-
+        # Charges can be grouped in different sections (e.g., if the gas rate
+        # changes in the middle of the month). We only care about the last
+        # section, because it contains the Fixed Delivery Charge.
+        charges = df[df['left'] > df[df['fields_str'] == "[u'Charges']"]['left']
+                    .iloc[0]].iloc[-1]['fields']
+        charge_desc = df[df['fields_str'].str.find(' days') >= 0] \
+            .iloc[-1]['fields'][1:]
+        return dict(zip(charge_desc[-len(charges):], charges))
+    except AttributeError as error:
+        print("Error scraping gas charges")
+    return {}
 
 def get_gas_rates(soup):
     def find_gas_rates(tag):
@@ -214,17 +227,15 @@ def convert_data_to_df(data):
 
     df = pd.DataFrame(data=dict(zip(cols, data_sets)))
 
-    df['Issue Date'] = [arrow.get(x, 'MMM DD YYYY').date()
+    df['Issue Date'] = [str(arrow.get(x, 'MMM DD YYYY').date())
                         for x in df['Issue Date']]
     df = df.set_index('Issue Date')
 
     # Extract water and gas consumption.
-    water_consumption = [x['water consumption']['Total Consumption']
-                         if 'Total Consumption' in x['water consumption']
-                         else None for x in data]
-    gas_consumption = [x['gas consumption']['Total Consumption']
-                       if 'Total Consumption' in x['gas consumption']
-                       else None for x in data]
+    water_consumption = [np.sum([x['Total Consumption'] if 'Total Consumption' in x
+                         else 0 for x in row['water consumption']]) for row in data]
+    gas_consumption = [np.sum([x['Total Consumption'] if 'Total Consumption' in x
+                       else 0 for x in row['gas consumption']]) for row in data]
     gas_fixed_charge = [x['gas charges']['Gas Fixed Delivery Charge']
                         if 'Gas Fixed Delivery Charge'
                         in x['gas charges'] else None for x in data]
