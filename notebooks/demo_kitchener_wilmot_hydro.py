@@ -24,7 +24,9 @@
 import subprocess
 import os
 from glob import glob
+import time
 
+import arrow
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -44,41 +46,70 @@ rcParams.update({
 data_directory = os.path.abspath(os.path.join('..', 'data'))
 
 # +
-bills_list = glob(os.path.join(os.path.join('..', 'tests', kwh.get_name()), '*.pdf'))
+kwh_api = None
 
+try:
+    # Create a Kitchener-Wilmot Hydro API object with your user name and password
+    from credentials import user, password
+
+    kwh_api = kwh.KitchenerWilmotHydroAPI(user[kwh.get_name()],
+                                          password[kwh.get_name()],
+                                          data_directory)
+
+    print('Downloading invoices from %s...' % kwh_api.name)
+    start_time = time.time()
+    invoices = kwh_api.download_invoices()
+    print('kwh_api.download_invoices() took %d seconds' % (time.time() - start_time))
+    display(invoices.head())
+    bills_list = glob(os.path.join(kwh_api._invoice_directory, '*.pdf'))
+except ModuleNotFoundError:
+    print('Using test data...')
+    bills_list = glob(os.path.join(os.path.join('..', 'tests', kwh.get_name()), '*.pdf'))
+
+# +
+# Load csv with previously cached data if it exists
+df_kwh = pd.DataFrame()
+cached_invoice_dates = []
+filepath = os.path.join(data_directory, kwh.get_name(), 'data.csv')
+
+if os.path.exists(filepath):
+    df_kwh = pd.read_csv(filepath).set_index('Date')
+    cached_invoice_dates = list(df_kwh.index)
+
+# Scrape data from pdf files
 data = []
 
-print('Scrape data from the following pdf files:')
 for pdf_file in bills_list:
-    print('  %s' % pdf_file)
-    result = process_pdf(pdf_file, rename=True)
-    if result:
-        data.append(result)
+    date = os.path.splitext(os.path.basename(pdf_file))[0].split(' - ')[0]
+    
+    # If we've already scraped this pdf, continue
+    if date not in cached_invoice_dates:
+        print('Scrape data from %s' % pdf_file)
+        result = process_pdf(pdf_file, rename=True)
+        if result:
+            data.append(result)
 
 # Convert the list of dictionaries into a dictionary of data frames (one for
 # each utility in the dataset).
 df = convert_data_to_df(data)
 
-# +
-filepath = os.path.join(data_directory, kwh.get_name(), 'data.csv')
-
-try:
-    # Save the data to a csv file
-    df_kwhydro = df[kwh.get_name()]
+# If there's any new data, append it to the cached data
+if df:
+    df_kwh = df_kwh.append(df[kwh.get_name()])
     
     # If the data directory doesn't exist yet, create it
     if not os.path.isdir(os.path.join(data_directory, kwh.get_name())):
         os.makedirs(os.path.join(data_directory, kwh.get_name()))
-    
-    df_kwhydro.to_csv(filepath)
-except NameError:
-    df_kwhydro = pd.read_csv(filepath).set_index('Date')
 
+    # Update csv file
+    df_kwh.to_csv(filepath)
+
+# +
 plt.figure()
-df_kwhydro['Off Peak Consumption'].plot()
-df_kwhydro['Mid Peak Consumption'].plot()
-df_kwhydro['On Peak Consumption'].plot()
-df_kwhydro['Total Consumption'].plot()
+df_kwh['Off Peak Consumption'].plot()
+df_kwh['Mid Peak Consumption'].plot()
+df_kwh['On Peak Consumption'].plot()
+df_kwh['Total Consumption'].plot()
 plt.ylim((0, None))
 plt.title('Monthly Electricity Consumption')
 plt.ylabel('kWh')
@@ -94,11 +125,28 @@ plt.legend(['Off Peak', 'Mid Peak', 'On Peak', 'Total'])
 
 cabron_intensity_kgCO2_per_kwh = .077
 print('annual electricity usage: %.1f kWh' % (
-    df_kwhydro['Total Consumption'].iloc[-12:].sum()))
-print('annual electricity cost: $%.2f' % (df_kwhydro['Amount Due'].iloc[-12:].sum()))
+    df_kwh['Total Consumption'].iloc[-12:].sum()))
+print('annual electricity cost: $%.2f' % (df_kwh['Amount Due'].iloc[-12:].sum()))
 print('annual CO2 emissions from electricity: %.2f kg' % (
-    df_kwhydro['Total Consumption'].iloc[-12:].sum() *
+    df_kwh['Total Consumption'].iloc[-12:].sum() *
     cabron_intensity_kgCO2_per_kwh))
 # -
+if kwh_api:
+    kwh_api.download_hourly_data()
+    
+    # Combine all data into a single dataframe
+    files = glob(os.path.join(kwh_api._hourly_data_directory, '*.csv'))
+
+    df = pd.read_csv(files[0], index_col=0)
+    for f in files[1:]:
+        df = df.append(pd.read_csv(f, index_col=0))
+
+    # Plot daily use
+    df['Date'] = [arrow.get(x).date().isoformat() for x in df.index]
+    df_base = df.groupby('Date').sum()
+    df_base['kWh'].plot()
+    plt.title('Daily use')
+    plt.ylabel('kWh');
+
 
 
