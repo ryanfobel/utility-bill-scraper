@@ -26,7 +26,7 @@ def get_amount_due(soup):
 
     tag = soup.find_all(find_amount_due_now)[-1]
     pos = re.search(pos_re, tag.decode()).groupdict()
-    pos = {k: int(v) for (k, v) in pos.iteritems()}
+    pos = {k: int(v) for (k, v) in pos.items()}
     pos['bottom'] = pos['top'] + pos['height']
     pos['right'] = pos['left'] + pos['width']
 
