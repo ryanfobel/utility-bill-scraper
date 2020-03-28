@@ -8,3 +8,5 @@
 data/*
 credentials.py
 chromedriver.exe
+dist
+*.egg-info
