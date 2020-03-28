@@ -13,6 +13,5 @@ The following instructions assume that you have
 [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed.
 
 ```
-conda create -n utility-bill-scraper -c conda-forge python arrow beautifulsoup4 jupyter jupytext matplotlib numpy pandas pdfminer
-activate utility-bill-scraper
+pip install utility-bill-scraper
 ```
