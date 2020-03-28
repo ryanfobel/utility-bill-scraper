@@ -30,8 +30,11 @@ setup(
     author_email='ryan@fobel.net',
     url='https://github.com/ryanfobel/utility-bill-scraper',
     install_requires=[
+        'arrow',
+        'beautifulsoup4',
         'numpy',
         'pandas',
+        'pdfminer',
         'selenium',
     ],    
     license='BSD-3',    
