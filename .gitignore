@@ -5,7 +5,8 @@
 *.vscode
 *.swp
 *~
-data/*
+build
+data
 credentials.py
 chromedriver.exe
 dist
