@@ -179,3 +179,7 @@ def convert_data_to_df(data):
         result[x['name']] = result[x['name']].append(df)
 
     return result
+
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions

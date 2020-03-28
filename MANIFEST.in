@@ -1,0 +1,2 @@
+include versioneer.py
+include src/utility_bill_scraper/_version.py
