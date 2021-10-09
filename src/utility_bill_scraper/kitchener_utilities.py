@@ -12,11 +12,10 @@ import numpy as np
 from selenium import webdriver
 from selenium.common.exceptions import (
     NoSuchElementException,
-    ElementClickInterceptedException,
     StaleElementReferenceException,
 )
 
-from utility_bill_scraper import format_fields, is_number, convert_divs_to_df
+from utility_bill_scraper import convert_divs_to_df, format_fields
 
 
 def get_name():
@@ -31,9 +30,7 @@ def get_summary(soup):
         return tag.name == u"span" and tag.decode().find("Your Account Summary") >= 0
 
     summary_fields = format_fields(soup.find_all(find_account_summary)[0].contents)
-    summary_data = format_fields(
-        soup.find_all(find_seq_id)[0].next_sibling.contents[0].contents
-    )
+    summary_data = format_fields(soup.find_all(find_seq_id)[0].next_sibling.contents[0].contents)
 
     summary_dict = dict(zip(summary_fields[1:], summary_data))
 
@@ -44,13 +41,11 @@ def get_summary(soup):
         tag = soup.find(find_matching_div)
 
         # Extract the top pixel coordinate.
-        match = re.search("top:(?P<top>\d+)px", tag.decode())
+        match = re.search(r"top:(?P<top>\d+)px", tag.decode())
         top = match.groups()[0]
 
         # Find the second div with the same top pixel coordinate.
-        return format_fields(
-            soup.find_all(style=re.compile("top:%spx" % top))[1].span.contents
-        )[0]
+        return format_fields(soup.find_all(style=re.compile("top:%spx" % top))[1].span.contents)[0]
 
     summary_dict[u"Water Charges"] = find_charges("Water charges")
     summary_dict[u"Gas Charges"] = find_charges("Gas charges")
@@ -74,7 +69,7 @@ def get_water_consumption(soup):
 
     for tag in tags:
         # Extract the top pixel coordinate.
-        match = re.search("top:(?P<top>\d+)px", tag.decode())
+        match = re.search(r"top:(?P<top>\d+)px", tag.decode())
         top = match.groups()[0]
 
         # Match all divs with the same top pixel coordinate.
@@ -101,14 +96,8 @@ def get_water_and_sewer_charges(soup):
     water_type = water_type[1:]
 
     consumption = format_fields(water_div.next_sibling.next_sibling.contents[0])
-    rates = format_fields(
-        water_div.next_sibling.next_sibling.next_sibling.next_sibling.contents[0]
-    )
-    charges = format_fields(
-        water_div.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.contents[
-            0
-        ]
-    )
+    rates = format_fields(water_div.next_sibling.next_sibling.next_sibling.next_sibling.contents[0])
+    charges = format_fields(water_div.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.contents[0])
 
     for x in range(len(water_type)):
         result[water_type[x]] = {
@@ -145,7 +134,7 @@ def get_gas_consumption(soup):
     consumption = []
     for tag in tags:
         # Extract the top pixel coordinate.
-        match = re.search("top:(?P<top>\d+)px", tag.decode())
+        match = re.search(r"top:(?P<top>\d+)px", tag.decode())
         top = match.groups()[0]
 
         # Match all divs with the same top pixel coordinate.
@@ -161,28 +150,25 @@ def get_gas_consumption(soup):
 def get_gas_charges(soup):
     try:
         # Find the bounding box that defines the gas section.
-        pos_re = (
-            "left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*"
-            "width:(?P<width>\d+)px.*height:(?P<height>\d+)"
-        )
+        pos_re = "left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*" "width:(?P<width>\d+)px.*height:(?P<height>\d+)"
 
         def find_gas_section(tag):
             return tag.name == u"div" and tag.decode().find("GAS") >= 0
 
         tag = soup.find(find_gas_section)
-        pos = re.search(pos_re, tag.decode()).groupdict()
+        pos = re.search(rpos_re, tag.decode()).groupdict()
         top_bound = int(pos["top"])
 
         def find_gas_charges(tag):
             return tag.name == u"div" and tag.decode().find("Gas charges") >= 0
 
         tag = soup.find(find_gas_charges)
-        pos = re.search(pos_re, tag.decode()).groupdict()
+        pos = re.search(rpos_re, tag.decode()).groupdict()
         bottom_bound = int(pos["top"])
 
         # Find all of the div tags within this bounding box.
         def find_divs_within_bounds(tag):
-            match = re.search(pos_re, tag.decode())
+            match = re.search(rpos_re, tag.decode())
             if match:
                 top = int(match.groupdict()["top"])
                 return top >= top_bound and top < bottom_bound and tag.name == u"div"
@@ -195,9 +181,7 @@ def get_gas_charges(soup):
         # Charges can be grouped in different sections (e.g., if the gas rate
         # changes in the middle of the month). We only care about the last
         # section, because it contains the Fixed Delivery Charge.
-        charges = df[
-            df["left"] > df[df["fields_str"] == "[u'Charges']"]["left"].iloc[0]
-        ].iloc[-1]["fields"]
+        charges = df[df["left"] > df[df["fields_str"] == "[u'Charges']"]["left"].iloc[0]].iloc[-1]["fields"]
         charge_desc = df[df["fields_str"].str.find(" days") >= 0].iloc[-1]["fields"][1:]
         return dict(zip(charge_desc[-len(charges) :], charges))
     except AttributeError as error:
@@ -207,27 +191,17 @@ def get_gas_charges(soup):
 
 def get_gas_rates(soup):
     def find_gas_rates(tag):
-        return (
-            tag.name == u"div" and tag.decode().find("Gas Fixed Delivery Charge") >= 0
-        )
+        return tag.name == u"div" and tag.decode().find("Gas Fixed Delivery Charge") >= 0
 
     gas_div = soup.find_all(find_gas_rates)[0]
     gas_fields = format_fields(gas_div.contents[0])
     gas_fields = gas_fields[1:]
-    gas_rates = format_fields(
-        gas_div.next_sibling.next_sibling.next_sibling.contents[0]
-    )
-    gas_charges = format_fields(
-        gas_div.next_sibling.next_sibling.next_sibling.next_sibling.contents[0]
-    )
+    gas_rates = format_fields(gas_div.next_sibling.next_sibling.next_sibling.contents[0])
+    gas_charges = format_fields(gas_div.next_sibling.next_sibling.next_sibling.next_sibling.contents[0])
 
     return dict(
         zip(
-            [
-                x + " Rate"
-                for x in gas_fields
-                if (x.find("HST") == -1) and x.find("Fixed") == -1
-            ],
+            [x + " Rate" for x in gas_fields if (x.find("HST") == -1) and x.find("Fixed") == -1],
             gas_rates,
         )
     )
@@ -248,28 +222,16 @@ def convert_data_to_df(data):
 
     df = pd.DataFrame(data=dict(zip(cols, data_sets)))
 
-    df["Issue Date"] = [
-        str(arrow.get(x, "MMM DD YYYY").date()) for x in df["Issue Date"]
-    ]
+    df["Issue Date"] = [str(arrow.get(x, "MMM DD YYYY").date()) for x in df["Issue Date"]]
     df = df.set_index("Issue Date")
 
     # Extract water and gas consumption.
     water_consumption = [
-        np.sum(
-            [
-                x["Total Consumption"] if "Total Consumption" in x else 0
-                for x in row["water consumption"]
-            ]
-        )
+        np.sum([x["Total Consumption"] if "Total Consumption" in x else 0 for x in row["water consumption"]])
         for row in data
     ]
     gas_consumption = [
-        np.sum(
-            [
-                x["Total Consumption"] if "Total Consumption" in x else 0
-                for x in row["gas consumption"]
-            ]
-        )
+        np.sum([x["Total Consumption"] if "Total Consumption" in x else 0 for x in row["gas consumption"]])
         for row in data
     ]
     """
@@ -324,9 +286,7 @@ class KitchenerUtilitiesAPI:
             options = webdriver.ChromeOptions()
             prefs = {"download.default_directory": self._temp_download_dir}
             options.add_experimental_option("prefs", prefs)
-            options.binary_location = (
-                "C:\Program Files\Google\Chrome\Application\chrome.exe"
-            )
+            options.binary_location = "C:\Program Files\Google\Chrome\Application\chrome.exe"
             if headless:
                 options.add_argument("--window-size=1920,1080")
                 options.add_argument("--headless")
@@ -340,9 +300,7 @@ class KitchenerUtilitiesAPI:
             options.set_preference("browser.download.folderList", 2)
             options.set_preference("browser.download.dir", self._temp_download_dir)
             options.set_preference("browser.download.useDownloadDir", True)
-            options.set_preference(
-                "browser.download.viewableInternally.enabledTypes", ""
-            )
+            options.set_preference("browser.download.viewableInternally.enabledTypes", "")
             options.set_preference(
                 "browser.helperApps.neverAsk.saveToDisk",
                 "application/pdf;text/plain;application/text;text/xml;application/xml",
@@ -362,9 +320,7 @@ class KitchenerUtilitiesAPI:
         self._driver = None
 
     def _login(self):
-        self._driver.get(
-            "https://ebilling.kitchener.ca/sap/bc/ui5_ui5/sap/ZUMCUI5/index.html"
-        )
+        self._driver.get("https://ebilling.kitchener.ca/sap/bc/ui5_ui5/sap/ZUMCUI5/index.html")
         self._driver.find_element_by_id("CANCEL_BUTTON ").click()
         self._driver.find_element_by_id("__field1").send_keys(self._user)
         self._driver.find_element_by_id("__field0").send_keys(self._password)
@@ -376,9 +332,7 @@ class KitchenerUtilitiesAPI:
         t_start = time.time()
         while time.time() - t_start < timeout:
             try:
-                pages = self._driver.find_element_by_id(
-                    "headerNavigationBar"
-                ).find_elements_by_tag_name("li")
+                pages = self._driver.find_element_by_id("headerNavigationBar").find_elements_by_tag_name("li")
                 keys = [x.text for x in pages]
                 result = dict(zip(keys, pages))
                 result.pop("", None)
@@ -389,9 +343,7 @@ class KitchenerUtilitiesAPI:
 
     def _get_contracts(self):
         # Pick the account (e.g., "Gas", "Water and Sewer", "Stormwater")
-        contract_table = self._driver.find_element_by_id(
-            "ContractTable-table"
-        ).find_element_by_tag_name("tbody")
+        contract_table = self._driver.find_element_by_id("ContractTable-table").find_element_by_tag_name("tbody")
         rows = contract_table.find_elements_by_tag_name("tr")
 
         contracts = [x.find_elements_by_tag_name("td")[0] for x in rows]
@@ -404,9 +356,7 @@ class KitchenerUtilitiesAPI:
         link = None
         while time.time() - t_start < timeout:
             try:
-                link = self._driver.find_element_by_id(
-                    "__table1-paginator--firstPageLink"
-                )
+                link = self._driver.find_element_by_id("__table1-paginator--firstPageLink")
                 link.location_once_scrolled_into_view
                 break
             except NoSuchElementException:
@@ -447,9 +397,7 @@ class KitchenerUtilitiesAPI:
 
         self._init_driver(headless=False)
 
-        self._invoice_directory = os.path.abspath(
-            os.path.join(self._data_directory, self.name, "invoices")
-        )
+        self._invoice_directory = os.path.abspath(os.path.join(self._data_directory, self.name, "invoices"))
         if not os.path.isdir(self._invoice_directory):
             os.makedirs(self._invoice_directory)
 
@@ -470,9 +418,7 @@ class KitchenerUtilitiesAPI:
 
                 rows = [
                     [y for y in x.find_elements_by_tag_name("td")]
-                    for x in billing_table.find_element_by_tag_name(
-                        "tbody"
-                    ).find_elements_by_tag_name("tr")
+                    for x in billing_table.find_element_by_tag_name("tbody").find_elements_by_tag_name("tr")
                 ]
 
                 data = []
@@ -492,8 +438,7 @@ class KitchenerUtilitiesAPI:
                     data.append(row_data)
                     new_filepath = os.path.join(
                         self._invoice_directory,
-                        "%s - %s - $%s.pdf"
-                        % (date.isoformat(), self.name, row_data[3]),
+                        "%s - %s - $%s.pdf" % (date.isoformat(), self.name, row_data[3]),
                     )
 
                     def download_link(link, ext, timeout=5):
@@ -512,13 +457,9 @@ class KitchenerUtilitiesAPI:
                         filepath = None
                         # wait for the file to finish downloading
                         while time.time() - t_start < timeout:
-                            files = glob.glob(
-                                os.path.join(self._temp_download_dir, "*.%s" % ext)
-                            )
+                            files = glob.glob(os.path.join(self._temp_download_dir, "*.%s" % ext))
                             if len(files):
-                                filepath = os.path.join(
-                                    self._temp_download_dir, files[0]
-                                )
+                                filepath = os.path.join(self._temp_download_dir, files[0])
                                 time.sleep(0.5)
                                 break
                         if not filepath:
@@ -568,16 +509,12 @@ class KitchenerUtilitiesAPI:
 
         # Convert to a dictionary
         results = {}
-        for i, name in enumerate(
-            ["Invoice ID", "Invoice Date", "Due Date", "Invoice Amount"]
-        ):
+        for i, name in enumerate(["Invoice ID", "Invoice Date", "Due Date", "Invoice Amount"]):
             results[name] = [x[i] for x in data]
 
         # Reformat dates
         for name in ["Invoice Date", "Due Date"]:
-            results[name] = [
-                arrow.get(x, "MM/DD/YYYY").date().isoformat() for x in results[name]
-            ]
+            results[name] = [arrow.get(x, "MM/DD/YYYY").date().isoformat() for x in results[name]]
 
         self._invoice_list = pd.DataFrame(results)
 
@@ -596,9 +533,7 @@ class KitchenerUtilitiesAPI:
                     .find_element_by_tag_name("tbody")
                 )
                 rows = consumption_history.find_elements_by_tag_name("tr")
-                data = [
-                    [y.text for y in x.find_elements_by_tag_name("td")] for x in rows
-                ]
+                data = [[y.text for y in x.find_elements_by_tag_name("td")] for x in rows]
                 return data
 
             self._login()
@@ -630,15 +565,8 @@ class KitchenerUtilitiesAPI:
             self._close_driver()
 
         def convert_to_series(data):
-            dates = [
-                arrow.get("%s 01 %s" % tuple(x.split(" ")), "MMMM DD YYYY").date()
-                for x in list(data.keys())
-            ]
-            dates = [
-                "%d-%02d-%02d"
-                % (x.year, x.month, calendar.monthrange(x.year, x.month)[1])
-                for x in dates
-            ]
+            dates = [arrow.get("%s 01 %s" % tuple(x.split(" ")), "MMMM DD YYYY").date() for x in list(data.keys())]
+            dates = ["%d-%02d-%02d" % (x.year, x.month, calendar.monthrange(x.year, x.month)[1]) for x in dates]
             return pd.Series(list(data.values()), index=dates)
 
         return convert_to_series(results)
