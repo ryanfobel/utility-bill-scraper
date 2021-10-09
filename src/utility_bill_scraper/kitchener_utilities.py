@@ -366,9 +366,11 @@ class KitchenerUtilitiesAPI:
         while time.time() - t_start < timeout:
             try:
                 link = self._driver.find_element_by_id('__table1-paginator--firstPageLink')
-                self._driver.execute_script('arguments[0].scrollIntoView(true);', link)
+                link.location_once_scrolled_into_view
                 break
             except NoSuchElementException:
+                pass
+            except StaleElementReferenceException:
                 pass
         if link:
             link.click()
@@ -547,15 +549,14 @@ class KitchenerUtilitiesAPI:
 
             # Click on the "Consumption History" tab
             link = self._driver.find_element_by_id('contractDetailNavigationBarItem2')
-            self._driver.execute_script('arguments[0].scrollIntoView(true);', link)
+            link.location_once_scrolled_into_view
             link.click()
             time.sleep(0.5)
 
             data = []
             for page in self._get_pages().keys():
                 link = self._get_pages()[page]
-                self._driver.execute_script('arguments[0].scrollIntoView(true);', link)
-                time.sleep(0.5)
+                link.location_once_scrolled_into_view
                 link.click()
                 data += get_data()
 
