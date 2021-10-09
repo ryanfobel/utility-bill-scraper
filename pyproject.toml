@@ -5,9 +5,16 @@ description = "Utility bill scraper for extracting data from pdfs and websites."
 authors = ["Ryan Fobel <ryan@fobel.net>"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = ">=3.8,<3.11"
+numpy = "^1.21.2"
+pandas = "^1.3.3"
+selenium = "^3.141.0"
+arrow = "^1.2.0"
+pdfminer = "^20191125"
+beautifulsoup4 = "^4.10.0"
 
 [tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
