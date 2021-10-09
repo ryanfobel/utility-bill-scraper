@@ -11,3 +11,5 @@ credentials.py
 chromedriver.exe
 dist
 *.egg-info
+chromedriver.exe
+geckodriver.*
