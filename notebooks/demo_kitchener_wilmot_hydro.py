@@ -30,6 +30,7 @@ import arrow
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+from IPython import display
 
 # Add parent directory to python path.
 import sys
