@@ -156,19 +156,19 @@ def get_gas_charges(soup):
             return tag.name == u"div" and tag.decode().find("GAS") >= 0
 
         tag = soup.find(find_gas_section)
-        pos = re.search(rpos_re, tag.decode()).groupdict()
+        pos = re.search(pos_re, tag.decode()).groupdict()
         top_bound = int(pos["top"])
 
         def find_gas_charges(tag):
             return tag.name == u"div" and tag.decode().find("Gas charges") >= 0
 
         tag = soup.find(find_gas_charges)
-        pos = re.search(rpos_re, tag.decode()).groupdict()
+        pos = re.search(pos_re, tag.decode()).groupdict()
         bottom_bound = int(pos["top"])
 
         # Find all of the div tags within this bounding box.
         def find_divs_within_bounds(tag):
-            match = re.search(rpos_re, tag.decode())
+            match = re.search(pos_re, tag.decode())
             if match:
                 top = int(match.groupdict()["top"])
                 return top >= top_bound and top < bottom_bound and tag.name == u"div"
