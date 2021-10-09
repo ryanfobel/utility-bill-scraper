@@ -197,7 +197,7 @@ def get_gas_rates(soup):
     gas_fields = format_fields(gas_div.contents[0])
     gas_fields = gas_fields[1:]
     gas_rates = format_fields(gas_div.next_sibling.next_sibling.next_sibling.contents[0])
-    gas_charges = format_fields(gas_div.next_sibling.next_sibling.next_sibling.next_sibling.contents[0])
+    format_fields(gas_div.next_sibling.next_sibling.next_sibling.next_sibling.contents[0])
 
     return dict(
         zip(
@@ -270,24 +270,25 @@ class Timeout(Exception):
 class KitchenerUtilitiesAPI:
     name = get_name()
 
-    def __init__(self, user, password, data_directory="."):
+    def __init__(self, user, password, data_directory=".", headless=True):
         self._user = user
         self._password = password
         self._driver = None
         self._browser = None
+        self._headless = headless
         self._invoice_list = None
         self._temp_download_dir = tempfile.mkdtemp()
         self._data_directory = data_directory
         self._invoice_directory = None
 
-    def _init_driver(self, headless=False, browser="Firefox"):
+    def _init_driver(self, browser="Firefox"):
         self._browser = browser
         if self._browser == "Chrome":
             options = webdriver.ChromeOptions()
             prefs = {"download.default_directory": self._temp_download_dir}
             options.add_experimental_option("prefs", prefs)
             options.binary_location = "C:\Program Files\Google\Chrome\Application\chrome.exe"
-            if headless:
+            if self._headless:
                 options.add_argument("--window-size=1920,1080")
                 options.add_argument("--headless")
                 options.add_argument("--disable-gpu")
@@ -307,7 +308,7 @@ class KitchenerUtilitiesAPI:
             )
             options.set_preference("pdfjs.disabled", True)
             # disable the built-in PDF viewer
-            if headless:
+            if self._headless:
                 options.add_argument("--headless")
                 options.add_argument("--window-size=1920,1080")
                 options.add_argument("--start-maximized")
@@ -395,7 +396,7 @@ class KitchenerUtilitiesAPI:
         if self._invoice_list is not None:
             return self._invoice_list
 
-        self._init_driver(headless=False)
+        self._init_driver()
 
         self._invoice_directory = os.path.abspath(os.path.join(self._data_directory, self.name, "invoices"))
         if not os.path.isdir(self._invoice_directory):
@@ -520,8 +521,8 @@ class KitchenerUtilitiesAPI:
 
         return self._invoice_list
 
-    def get_consumption_history(self, contract, headless=True):
-        self._init_driver(headless=headless)
+    def get_consumption_history(self, contract):
+        self._init_driver()
 
         try:
 
