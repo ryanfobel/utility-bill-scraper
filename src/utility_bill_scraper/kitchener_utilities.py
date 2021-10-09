@@ -379,6 +379,7 @@ class KitchenerUtilitiesAPI:
 
     def _get_pages(self, timeout=5):
         # Get a list of the pages available
+        table=None
         t_start = time.time()
         while time.time() - t_start < timeout:
             try:
