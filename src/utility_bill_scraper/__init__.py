@@ -23,8 +23,8 @@ def convert_divs_to_df(divs):
     """Convert list of divs to a pandas DataFrame describing the position and
     geomtery of each tag."""
     pos_re = (
-        "left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*"
-        "width:(?P<width>\d+)px.*height:(?P<height>\d+)"
+        r"left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*"
+        r"width:(?P<width>\d+)px.*height:(?P<height>\d+)"
     )
 
     df = pd.DataFrame()
@@ -95,7 +95,7 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
     basepath = os.path.dirname(pdf_file)
     html_file = basename + ".html"
     subprocess.check_output(
-        ["python", "%CONDA_PREFIX%\Scripts\pdf2txt.py", "-o%s" % html_file, pdf_file],
+        ["python", r"%CONDA_PREFIX%\Scripts\pdf2txt.py", "-o%s" % html_file, pdf_file],
         shell=True,
     )
 
