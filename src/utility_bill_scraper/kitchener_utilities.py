@@ -308,15 +308,24 @@ class KitchenerUtilitiesAPI:
         
     def _login(self):
         self._driver.get('https://ebilling.kitchener.ca/sap/bc/ui5_ui5/sap/ZUMCUI5/index.html')
+        self._driver.find_element_by_id('CANCEL_BUTTON ').click()
         self._driver.find_element_by_id('__field1').send_keys(self._user)
         self._driver.find_element_by_id('__field0').send_keys(self._password)
         self._driver.find_element_by_id('__button0').click()
 
     def _get_header_nav_bar(self):
-        pages = self._driver.find_element_by_id('headerNavigationBar').find_elements_by_tag_name('li')
-        keys = [x.text for x in pages]
-        result = dict(zip(keys, pages))
-        result.pop('', None)
+        timeout = 5
+        result = None
+        t_start = time.time()
+        while time.time() - t_start < timeout:
+            try:
+                pages = self._driver.find_element_by_id('headerNavigationBar').find_elements_by_tag_name('li')
+                keys = [x.text for x in pages]
+                result = dict(zip(keys, pages))
+                result.pop('', None)
+                break
+            except NoSuchElementException:
+                pass
         return result
 
     def _get_contracts(self):
@@ -453,8 +462,6 @@ class KitchenerUtilitiesAPI:
                 return data
 
             self._get_header_nav_bar()['BILLING'].click()
-            time.sleep(0.5)
-
             self._first_page()
 
             pages_downloaded = []
