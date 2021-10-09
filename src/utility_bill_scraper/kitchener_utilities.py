@@ -286,21 +286,42 @@ class KitchenerUtilitiesAPI:
         self._user = user
         self._password = password
         self._driver = None
+        self._browser = None
         self._invoice_list = None
         self._temp_download_dir = tempfile.mkdtemp()
         self._data_directory = data_directory
         self._invoice_directory = None
 
-    def _init_driver(self, headless=False):
-        options = webdriver.ChromeOptions()
-        prefs = {'download.default_directory' : self._temp_download_dir}
-        options.add_experimental_option('prefs', prefs)
-
-        if headless:
-            options.add_argument('headless')
-            options.add_argument('window-size=1200x600')
-            
-        self._driver = webdriver.Chrome(options=options)
+    def _init_driver(self, headless=False, browser='Firefox'):
+        self._browser = browser
+        if self._browser == 'Chrome':
+            options = webdriver.ChromeOptions()
+            prefs = {'download.default_directory' : self._temp_download_dir}
+            options.add_experimental_option('prefs', prefs)
+            options.binary_location = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+            if headless:
+                options.add_argument("--window-size=1920,1080")
+                options.add_argument("--headless")
+                options.add_argument("--disable-gpu")
+                options.add_argument(
+                    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36")
+            self._driver = webdriver.Chrome(options=options)
+        elif self._browser == 'Firefox':
+            options = webdriver.firefox.options.Options()  
+            options.set_preference("browser.download.folderList", 2)
+            options.set_preference("browser.download.dir", self._temp_download_dir)
+            options.set_preference("browser.download.useDownloadDir", True);
+            options.set_preference("browser.download.viewableInternally.enabledTypes", "");
+            options.set_preference("browser.helperApps.neverAsk.saveToDisk",
+                                "application/pdf;text/plain;application/text;text/xml;application/xml");
+            options.set_preference("pdfjs.disabled", True);  # disable the built-in PDF viewer        
+            if headless:
+                options.add_argument("--headless") 
+                options.add_argument("--window-size=1920,1080")
+                options.add_argument('--start-maximized')
+                options.add_argument('--disable-gpu')
+                options.add_argument('--no-sandbox')
+            self._driver = webdriver.Firefox(options=options)
 
     def _close_driver(self):
         self._driver.close()
