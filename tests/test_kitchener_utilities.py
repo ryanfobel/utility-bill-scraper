@@ -12,18 +12,18 @@ def test_instantiate_api_class():
     data_directory = os.path.abspath(os.path.join("..", "data"))
 
     # Create a Kitchener Utilities API object with your user name and password
-    from credentials import user, password
-
-    ku_api = ku.KitchenerUtilitiesAPI(user[ku.get_name()], password[ku.get_name()], data_directory)
+    user = os.getenv("KITCHENER_UTILITIES_USER")
+    password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
+    ku.KitchenerUtilitiesAPI(user, password, data_directory)
 
 
 def test_download_invoices():
     data_directory = os.path.abspath(os.path.join("..", "data"))
 
     # Create a Kitchener Utilities API object with your user name and password
-    from credentials import user, password
-
-    ku_api = ku.KitchenerUtilitiesAPI(user[ku.get_name()], password[ku.get_name()], data_directory)
+    user = os.getenv("KITCHENER_UTILITIES_USER")
+    password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
+    ku_api = ku.KitchenerUtilitiesAPI(user, password, data_directory)
 
     invoices = ku_api.download_invoices(start_date="2021-09-01")
     assert len(invoices) > 0
