@@ -270,7 +270,7 @@ class Timeout(Exception):
 class KitchenerUtilitiesAPI:
     name = get_name()
 
-    def __init__(self, user, password, data_directory=".", headless=True):
+    def __init__(self, user, password, data_directory=".", headless=False, timeout=10):
         self._user = user
         self._password = password
         self._driver = None
@@ -280,6 +280,7 @@ class KitchenerUtilitiesAPI:
         self._temp_download_dir = tempfile.mkdtemp()
         self._data_directory = data_directory
         self._invoice_directory = None
+        self._timeout = timeout
 
     def _init_driver(self, browser="Firefox"):
         self._browser = browser
@@ -327,19 +328,18 @@ class KitchenerUtilitiesAPI:
         self._driver.find_element_by_id("__button0").click()
 
     def _get_header_nav_bar(self):
-        timeout = 5
         result = None
         t_start = time.time()
-        while time.time() - t_start < timeout:
+        while time.time() - t_start < self._timeout:
             try:
                 pages = self._driver.find_element_by_id("headerNavigationBar").find_elements_by_tag_name("li")
                 keys = [x.text for x in pages]
                 result = dict(zip(keys, pages))
                 result.pop("", None)
-                break
+                return result
             except NoSuchElementException:
                 pass
-        return result
+        raise Timeout
 
     def _get_contracts(self):
         # Pick the account (e.g., "Gas", "Water and Sewer", "Stormwater")
@@ -350,11 +350,11 @@ class KitchenerUtilitiesAPI:
         keys = [x.text for x in contracts]
         return dict(zip(keys, contracts))
 
-    def _first_page(self, timeout=5):
+    def _first_page(self):
         # Get a list of the pages available
         t_start = time.time()
         link = None
-        while time.time() - t_start < timeout:
+        while time.time() - t_start < self._timeout:
             try:
                 link = self._driver.find_element_by_id("__table1-paginator--firstPageLink")
                 link.location_once_scrolled_into_view
@@ -370,11 +370,11 @@ class KitchenerUtilitiesAPI:
             raise Timeout
         return
 
-    def _get_pages(self, timeout=5):
+    def _get_pages(self):
         # Get a list of the pages available
         table = None
         t_start = time.time()
-        while time.time() - t_start < timeout:
+        while time.time() - t_start < self._timeout:
             try:
                 table = self._driver.find_element_by_id("__table1-paginator-pages")
                 time.sleep(1)
@@ -391,7 +391,7 @@ class KitchenerUtilitiesAPI:
             raise Timeout
         return None
 
-    def download_invoices(self, start_date=None, end_date=None, timeout=5):
+    def download_invoices(self, start_date=None, end_date=None):
         if self._invoice_list is not None:
             return self._invoice_list
 
@@ -441,7 +441,7 @@ class KitchenerUtilitiesAPI:
                         "%s - %s - $%s.pdf" % (date.isoformat(), self.name, row_data[3]),
                     )
 
-                    def download_link(link, ext, timeout=5):
+                    def download_link(link, ext):
                         # remove all files in the temp dir
                         files = os.listdir(self._temp_download_dir)
                         for file in files:
@@ -456,7 +456,7 @@ class KitchenerUtilitiesAPI:
                         t_start = time.time()
                         filepath = None
                         # wait for the file to finish downloading
-                        while time.time() - t_start < timeout:
+                        while time.time() - t_start < self._timeout:
                             files = glob.glob(os.path.join(self._temp_download_dir, "*.%s" % ext))
                             if len(files):
                                 filepath = os.path.join(self._temp_download_dir, files[0])
