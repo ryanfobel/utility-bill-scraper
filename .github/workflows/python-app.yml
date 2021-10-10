@@ -40,5 +40,8 @@ jobs:
       run: |
         poetry install
     - name: Test with pytest
+      env:
+        KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
+        KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
       run: |
         poetry run pytest
