@@ -150,7 +150,7 @@ def get_gas_consumption(soup):
 def get_gas_charges(soup):
     try:
         # Find the bounding box that defines the gas section.
-        pos_re = "left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*" "width:(?P<width>\d+)px.*height:(?P<height>\d+)"
+        pos_re = r"left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*width:(?P<width>\d+)px.*height:(?P<height>\d+)"
 
         def find_gas_section(tag):
             return tag.name == u"div" and tag.decode().find("GAS") >= 0
@@ -287,7 +287,6 @@ class KitchenerUtilitiesAPI:
             options = webdriver.ChromeOptions()
             prefs = {"download.default_directory": self._temp_download_dir}
             options.add_experimental_option("prefs", prefs)
-            options.binary_location = "C:\Program Files\Google\Chrome\Application\chrome.exe"
             if self._headless:
                 options.add_argument("--window-size=1920,1080")
                 options.add_argument("--headless")
