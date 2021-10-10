@@ -270,7 +270,7 @@ class Timeout(Exception):
 class KitchenerUtilitiesAPI:
     name = get_name()
 
-    def __init__(self, user, password, data_directory=".", headless=False, timeout=10):
+    def __init__(self, user, password, data_directory=".", headless=True, timeout=10):
         self._user = user
         self._password = password
         self._driver = None
