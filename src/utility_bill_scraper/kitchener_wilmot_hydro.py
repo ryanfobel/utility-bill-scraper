@@ -1,22 +1,18 @@
+import datetime
+import glob
+import os
+import random
 import re
 import tempfile
 import time
-import os
-import datetime
-import glob
-import random
 
 import arrow
 import numpy as np
 import pandas as pd
 from selenium import webdriver
-from selenium.common.exceptions import (
-    NoSuchElementException,
-    ElementClickInterceptedException,
-    StaleElementReferenceException,
-)
+from selenium.common.exceptions import NoSuchElementException
 
-from utility_bill_scraper import format_fields, is_number
+from utility_bill_scraper import format_fields
 
 
 def get_name():
@@ -54,9 +50,7 @@ def get_billing_date(soup):
 
     match = re.search(
         "([A-Z]+)\s+(\d+)\s+(\d+)",
-        format_fields(
-            soup.find_all(find_billing)[0].next_sibling.next_sibling.span.contents
-        )[0],
+        format_fields(soup.find_all(find_billing)[0].next_sibling.next_sibling.span.contents)[0],
     )
     month, day, year = match.groups()
 
@@ -107,9 +101,7 @@ def get_amount_due(soup):
         match = re.search("top:(?P<top>\d+)px", tag.decode())
         distance.append(abs(float(match.groups()[0]) - top))
 
-    amount_due = format_fields(
-        tags[np.nonzero(distance == np.min(distance))[0][0]].span
-    )[0]
+    amount_due = format_fields(tags[np.nonzero(distance == np.min(distance))[0][0]].span)[0]
 
     index = str(amount_due).find("CR")
     if index >= 0:
@@ -123,15 +115,9 @@ def convert_data_to_df(data):
         {
             "Date": [arrow.get(x["date"]).date() for x in data],
             "Amount Due": [x["amount due"] for x in data],
-            "Off Peak Consumption": [
-                x["electricity consumption"]["off peak"] for x in data
-            ],
-            "Mid Peak Consumption": [
-                x["electricity consumption"]["mid peak"] for x in data
-            ],
-            "On Peak Consumption": [
-                x["electricity consumption"]["on peak"] for x in data
-            ],
+            "Off Peak Consumption": [x["electricity consumption"]["off peak"] for x in data],
+            "Mid Peak Consumption": [x["electricity consumption"]["mid peak"] for x in data],
+            "On Peak Consumption": [x["electricity consumption"]["on peak"] for x in data],
             "Off Peak Rate": [x["electricity rates"]["off peak"] for x in data],
             "Mid Peak Rate": [x["electricity rates"]["mid peak"] for x in data],
             "On Peak Rate": [x["electricity rates"]["on peak"] for x in data],
@@ -139,11 +125,7 @@ def convert_data_to_df(data):
     )
     df = df.set_index("Date")
 
-    df["Total Consumption"] = (
-        df["Off Peak Consumption"]
-        + df["Mid Peak Consumption"]
-        + df["On Peak Consumption"]
-    )
+    df["Total Consumption"] = df["Off Peak Consumption"] + df["Mid Peak Consumption"] + df["On Peak Consumption"]
     return df
 
 
@@ -187,9 +169,7 @@ class KitchenerWilmotHydroAPI:
         self._driver.get("https://www3.kwhydro.on.ca/app/login.jsp")
         self._driver.find_element_by_id("accessCode").send_keys(self._user)
         self._driver.find_element_by_id("password").send_keys(self._password)
-        self._driver.find_element_by_xpath(
-            '//*[@id="login-form"]/div[3]/button'
-        ).click()
+        self._driver.find_element_by_xpath('//*[@id="login-form"]/div[3]/button').click()
 
     def _download_link(self, link, ext, timeout=5):
         # remove all files in the temp dir
@@ -234,24 +214,18 @@ class KitchenerWilmotHydroAPI:
                 end_date = arrow.get().date()
 
             if end_date > start_date and end_date > yesterday:
-                date_range = pd.date_range(start_date, yesterday, freq="M").append(
-                    pd.DatetimeIndex([yesterday])
-                )
+                date_range = pd.date_range(start_date, yesterday, freq="M").append(pd.DatetimeIndex([yesterday]))
             else:
                 date_range = pd.date_range(start_date, end_date, freq="M")
             date_range = [x.date() for x in date_range]
 
-            self._hourly_data_directory = os.path.join(
-                self._data_directory, self.name, "hourly data"
-            )
+            self._hourly_data_directory = os.path.join(self._data_directory, self.name, "hourly data")
 
             for date in date_range:
                 if not os.path.isdir(self._hourly_data_directory):
                     os.makedirs(self._hourly_data_directory)
 
-                new_filepath = os.path.join(
-                    self._hourly_data_directory, "%s.csv" % (date.isoformat())
-                )
+                new_filepath = os.path.join(self._hourly_data_directory, "%s.csv" % (date.isoformat()))
 
                 if os.path.exists(new_filepath):
                     continue
@@ -276,9 +250,7 @@ class KitchenerWilmotHydroAPI:
                     try:
                         valid_date_range = not self._driver.find_element_by_class_name(
                             "alert.alert-danger"
-                        ).text.startswith(
-                            "You are not authorized to view the selected date range."
-                        )
+                        ).text.startswith("You are not authorized to view the selected date range.")
                     except NoSuchElementException:
                         pass
                     return valid_date_range
@@ -291,24 +263,15 @@ class KitchenerWilmotHydroAPI:
                 # Wait a random period between requests so that we don't get blocked
                 time.sleep(5 + random.random() * 5)
 
-                filepath = self._download_link(
-                    self._driver.find_element_by_id("download"), "csv"
-                )
+                filepath = self._download_link(self._driver.find_element_by_id("download"), "csv")
 
                 # Read the csv file
-                df_csv = pd.read_csv(filepath)[
-                    :-1
-                ]  # Ignore last line which is just a note
+                df_csv = pd.read_csv(filepath)[:-1]  # Ignore last line which is just a note
 
                 # Create an hourly index
                 index = pd.date_range(
                     df_csv["Reading Date"].iloc[0],
-                    (
-                        arrow.get(df_csv["Reading Date"].iloc[-1])
-                        + datetime.timedelta(days=1)
-                    )
-                    .date()
-                    .isoformat(),
+                    (arrow.get(df_csv["Reading Date"].iloc[-1]) + datetime.timedelta(days=1)).date().isoformat(),
                     freq="h",
                 )[:-1]
 
@@ -345,9 +308,7 @@ class KitchenerWilmotHydroAPI:
 
         self._init_driver(headless=False)
 
-        self._invoice_directory = os.path.abspath(
-            os.path.join(self._data_directory, self.name, "invoices")
-        )
+        self._invoice_directory = os.path.abspath(os.path.join(self._data_directory, self.name, "invoices"))
         if not os.path.isdir(self._invoice_directory):
             os.makedirs(self._invoice_directory)
 
@@ -375,9 +336,7 @@ class KitchenerWilmotHydroAPI:
 
             rows = [
                 [y for y in x.find_elements_by_tag_name("td")]
-                for x in bills_table.find_element_by_tag_name(
-                    "tbody"
-                ).find_elements_by_tag_name("tr")[2:]
+                for x in bills_table.find_element_by_tag_name("tbody").find_elements_by_tag_name("tr")[2:]
             ]
 
             data = []
@@ -395,8 +354,7 @@ class KitchenerWilmotHydroAPI:
                 data.append(row_data)
                 new_filepath = os.path.join(
                     self._invoice_directory,
-                    "%s - %s - $%s.pdf"
-                    % (date.isoformat(), self.name, row_data[1].split(" ")[1]),
+                    "%s - %s - $%s.pdf" % (date.isoformat(), self.name, row_data[1].split(" ")[1]),
                 )
 
                 def download_link(link, ext, timeout=5):
@@ -415,9 +373,7 @@ class KitchenerWilmotHydroAPI:
                     filepath = None
                     # wait for the file to finish downloading
                     while time.time() - t_start < timeout:
-                        files = glob.glob(
-                            os.path.join(self._temp_download_dir, "*.%s" % ext)
-                        )
+                        files = glob.glob(os.path.join(self._temp_download_dir, "*.%s" % ext))
                         if len(files):
                             filepath = os.path.join(self._temp_download_dir, files[0])
                             time.sleep(0.5)
@@ -441,9 +397,7 @@ class KitchenerWilmotHydroAPI:
 
         # Reformat dates
         for name in ["Invoice Date"]:
-            results[name] = [
-                arrow.get(x, "MMM D, YYYY").date().isoformat() for x in results[name]
-            ]
+            results[name] = [arrow.get(x, "MMM D, YYYY").date().isoformat() for x in results[name]]
 
         self._invoice_list = pd.DataFrame(results)
 

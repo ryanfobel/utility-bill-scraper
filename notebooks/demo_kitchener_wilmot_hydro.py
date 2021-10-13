@@ -21,71 +21,67 @@
 # %load_ext autoreload
 # %autoreload 2
 
-import subprocess
 import os
-from glob import glob
-import time
-
-import arrow
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
-from IPython import display
 
 # Add parent directory to python path.
 import sys
-sys.path.insert(0, '..')
-from utility_bill_scraper import process_pdf, convert_data_to_df
+import time
+from glob import glob
+
+import arrow
+import matplotlib.pyplot as plt
+import pandas as pd
+from IPython import display
+from matplotlib import rcParams
+
+sys.path.insert(0, "..")
 import utility_bill_scraper.kitchener_wilmot_hydro as kwh
+from utility_bill_scraper import convert_data_to_df, process_pdf
 
 # %matplotlib inline
 
-rcParams.update({
-    'figure.figsize': (12, 6)
-})
+rcParams.update({"figure.figsize": (12, 6)})
 
-data_directory = os.path.abspath(os.path.join('..', 'data'))
+data_directory = os.path.abspath(os.path.join("..", "data"))
 
 # +
 kwh_api = None
 
 try:
     # Create a Kitchener-Wilmot Hydro API object with your user name and password
-    from credentials import user, password
+    from credentials import password, user
 
-    kwh_api = kwh.KitchenerWilmotHydroAPI(user[kwh.get_name()],
-                                          password[kwh.get_name()],
-                                          data_directory)
+    kwh_api = kwh.KitchenerWilmotHydroAPI(user[kwh.get_name()], password[kwh.get_name()], data_directory)
 
-    print('Downloading invoices from %s...' % kwh_api.name)
+    print("Downloading invoices from %s..." % kwh_api.name)
     start_time = time.time()
     invoices = kwh_api.download_invoices()
-    print('kwh_api.download_invoices() took %d seconds' % (time.time() - start_time))
+    print("kwh_api.download_invoices() took %d seconds" % (time.time() - start_time))
     display(invoices.head())
-    bills_list = glob(os.path.join(kwh_api._invoice_directory, '*.pdf'))
+    bills_list = glob(os.path.join(kwh_api._invoice_directory, "*.pdf"))
 except ModuleNotFoundError:
-    print('Using test data...')
-    bills_list = glob(os.path.join(os.path.join('..', 'tests', kwh.get_name()), '*.pdf'))
+    print("Using test data...")
+    bills_list = glob(os.path.join(os.path.join("..", "tests", kwh.get_name()), "*.pdf"))
 
 # +
 # Load csv with previously cached data if it exists
 df_kwh = pd.DataFrame()
 cached_invoice_dates = []
-filepath = os.path.join(data_directory, kwh.get_name(), 'data.csv')
+filepath = os.path.join(data_directory, kwh.get_name(), "data.csv")
 
 if os.path.exists(filepath):
-    df_kwh = pd.read_csv(filepath).set_index('Date')
+    df_kwh = pd.read_csv(filepath).set_index("Date")
     cached_invoice_dates = list(df_kwh.index)
 
 # Scrape data from pdf files
 data = []
 
 for pdf_file in bills_list:
-    date = os.path.splitext(os.path.basename(pdf_file))[0].split(' - ')[0]
-    
+    date = os.path.splitext(os.path.basename(pdf_file))[0].split(" - ")[0]
+
     # If we've already scraped this pdf, continue
     if date not in cached_invoice_dates:
-        print('Scrape data from %s' % pdf_file)
+        print("Scrape data from %s" % pdf_file)
         result = process_pdf(pdf_file, rename=True)
         if result:
             data.append(result)
@@ -97,7 +93,7 @@ df = convert_data_to_df(data)
 # If there's any new data, append it to the cached data
 if df:
     df_kwh = df_kwh.append(df[kwh.get_name()])
-    
+
     # If the data directory doesn't exist yet, create it
     if not os.path.isdir(os.path.join(data_directory, kwh.get_name())):
         os.makedirs(os.path.join(data_directory, kwh.get_name()))
@@ -107,14 +103,14 @@ if df:
 
 # +
 plt.figure()
-df_kwh['Off Peak Consumption'].plot()
-df_kwh['Mid Peak Consumption'].plot()
-df_kwh['On Peak Consumption'].plot()
-df_kwh['Total Consumption'].plot()
+df_kwh["Off Peak Consumption"].plot()
+df_kwh["Mid Peak Consumption"].plot()
+df_kwh["On Peak Consumption"].plot()
+df_kwh["Total Consumption"].plot()
 plt.ylim((0, None))
-plt.title('Monthly Electricity Consumption')
-plt.ylabel('kWh')
-plt.legend(['Off Peak', 'Mid Peak', 'On Peak', 'Total'])
+plt.title("Monthly Electricity Consumption")
+plt.ylabel("kWh")
+plt.legend(["Off Peak", "Mid Peak", "On Peak", "Total"])
 
 # Carbon intensity of electricity generation in Ontario (40-77 g CO2 / kWh)
 # * 40 g / kWh (https://www.neb-one.gc.ca/nrg/sttstc/lctrct/rprt/
@@ -124,30 +120,27 @@ plt.legend(['Off Peak', 'Mid Peak', 'On Peak', 'Total'])
 # * This is likely to go up when Pickering is closed
 #   https://www.opg.com/darlington-refurbishment/Documents/IntrinsikReport_GHG_OntarioPower.pdf
 
-cabron_intensity_kgCO2_per_kwh = .077
-print('annual electricity usage: %.1f kWh' % (
-    df_kwh['Total Consumption'].iloc[-12:].sum()))
-print('annual electricity cost: $%.2f' % (df_kwh['Amount Due'].iloc[-12:].sum()))
-print('annual CO2 emissions from electricity: %.2f kg' % (
-    df_kwh['Total Consumption'].iloc[-12:].sum() *
-    cabron_intensity_kgCO2_per_kwh))
+cabron_intensity_kgCO2_per_kwh = 0.077
+print("annual electricity usage: %.1f kWh" % (df_kwh["Total Consumption"].iloc[-12:].sum()))
+print("annual electricity cost: $%.2f" % (df_kwh["Amount Due"].iloc[-12:].sum()))
+print(
+    "annual CO2 emissions from electricity: %.2f kg"
+    % (df_kwh["Total Consumption"].iloc[-12:].sum() * cabron_intensity_kgCO2_per_kwh)
+)
 # -
 if kwh_api:
     kwh_api.download_hourly_data()
-    
+
     # Combine all data into a single dataframe
-    files = glob(os.path.join(kwh_api._hourly_data_directory, '*.csv'))
+    files = glob(os.path.join(kwh_api._hourly_data_directory, "*.csv"))
 
     df = pd.read_csv(files[0], index_col=0)
     for f in files[1:]:
         df = df.append(pd.read_csv(f, index_col=0))
 
     # Plot daily use
-    df['Date'] = [arrow.get(x).date().isoformat() for x in df.index]
-    df_base = df.groupby('Date').sum()
-    df_base['kWh'].plot()
-    plt.title('Daily use')
-    plt.ylabel('kWh');
-
-
-
+    df["Date"] = [arrow.get(x).date().isoformat() for x in df.index]
+    df_base = df.groupby("Date").sum()
+    df_base["kWh"].plot()
+    plt.title("Daily use")
+    plt.ylabel("kWh")

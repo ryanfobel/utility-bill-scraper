@@ -1,5 +1,5 @@
-import re
 import os
+import re
 import subprocess
 
 import arrow
@@ -22,10 +22,7 @@ def format_fields(input_list):
 def convert_divs_to_df(divs):
     """Convert list of divs to a pandas DataFrame describing the position and
     geomtery of each tag."""
-    pos_re = (
-        r"left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*"
-        r"width:(?P<width>\d+)px.*height:(?P<height>\d+)"
-    )
+    pos_re = r"left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*" r"width:(?P<width>\d+)px.*height:(?P<height>\d+)"
 
     df = pd.DataFrame()
     for x in divs:
@@ -54,10 +51,7 @@ def is_kitchener_utilities_bill(soup):
     """Check if this is a Kitchener Utilities bill."""
 
     def find_kitchener_utilities(tag):
-        return (
-            tag.name == u"span"
-            and tag.decode().find("Supplier: KITCHENER UTILITIES") >= 0
-        )
+        return tag.name == u"span" and tag.decode().find("Supplier: KITCHENER UTILITIES") >= 0
 
     return len(soup.find_all(find_kitchener_utilities)) > 0
 
@@ -66,9 +60,7 @@ def is_kitchener_wilmot_hydro_bill(soup):
     """Check if this is a Kitchener-Wilmot Hydro bill."""
 
     def find_kitchener_wilmot_hydro(tag):
-        return (
-            tag.name == u"span" and tag.decode().find("KITCHENER-WILMOT HYDRO INC") >= 0
-        )
+        return tag.name == u"span" and tag.decode().find("KITCHENER-WILMOT HYDRO INC") >= 0
 
     return len(soup.find_all(find_kitchener_wilmot_hydro)) > 0
 
@@ -77,10 +69,7 @@ def is_enbridge_gas_bill(soup):
     """Check if this is an Enbridge Gas bill."""
 
     def find_enbridge_gas(tag):
-        return (
-            tag.name == u"span"
-            and tag.decode().find("Enbridge Gas Distribution Inc.") >= 0
-        )
+        return tag.name == u"span" and tag.decode().find("Enbridge Gas Distribution Inc.") >= 0
 
     return len(soup.find_all(find_enbridge_gas)) > 0
 

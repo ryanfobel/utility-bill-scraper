@@ -1,20 +1,17 @@
-import re
-import random
-import time
-import os
-import tempfile
-import glob
 import calendar
+import glob
+import os
+import random
+import re
 import shutil
+import tempfile
+import time
 
 import arrow
-import pandas as pd
 import numpy as np
+import pandas as pd
 from selenium import webdriver
-from selenium.common.exceptions import (
-    NoSuchElementException,
-    StaleElementReferenceException,
-)
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
 
 from utility_bill_scraper import convert_divs_to_df, format_fields, process_pdf
 
@@ -275,7 +272,15 @@ class UnsupportedFileTye(Exception):
 class KitchenerUtilitiesAPI:
     name = get_name()
 
-    def __init__(self, user=None, password=None, history_path=None, statement_path=None, headless=True, timeout=10):
+    def __init__(
+        self,
+        user=None,
+        password=None,
+        history_path=None,
+        statement_path=None,
+        headless=True,
+        timeout=10,
+    ):
         self._user = user
         self._password = password
         self._driver = None

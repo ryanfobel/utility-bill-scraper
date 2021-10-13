@@ -33,16 +33,16 @@
 # %load_ext autoreload
 # %autoreload 2
 
-import sys
-import os
 import datetime as dt
+import os
+import sys
 
 sys.path.insert(0, os.path.join("..", "src"))
 
-import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
+import numpy as np
 from dotenv import load_dotenv
+from matplotlib import rcParams
 
 import utility_bill_scraper.kitchener_utilities as ku
 
