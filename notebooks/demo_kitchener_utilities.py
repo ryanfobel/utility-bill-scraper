@@ -107,6 +107,7 @@ df_ku["month"] = [int(x[5:7]) for x in df_ku.index]
 plt.figure()
 df_ku.groupby("year").sum()["Gas Consumption"].plot.bar(width=0.9)
 plt.ylabel("m$^3$")
+ylim = plt.ylim()
 ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")

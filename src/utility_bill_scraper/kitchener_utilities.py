@@ -541,7 +541,7 @@ class KitchenerUtilitiesAPI:
         return self._scrape_pdf_files(pdf_files)
 
     def _scrape_pdf_files(self, pdf_files=[]):
-        if len(pdf_files) is 0:
+        if len(pdf_files) == 0:
             pdf_files = glob.glob(os.path.join(self._statement_path, "*.pdf"))
 
         cached_invoice_dates = list(self._history.index)
