@@ -89,7 +89,9 @@ plt.ylabel("m$^3$")
 # 119.58 lbs CO2/1000 cubic feet of natural gas
 # 1.915 kg CO2/1 m^3 natural gas [119.58 lbs * (1 kg / 2.204623 lbs) *
 #   (1 ft^3 / (0.0254 * 12)**3 m^3) / 1000]
-kgCO2_per_cubic_meter = 119.58 * (1 / 2.204623) * (1 / (0.0254 * 12) ** 3) / 1000  # kg CO2/1 m^3 natural gas
+kgCO2_per_cubic_meter = (
+    119.58 * (1 / 2.204623) * (1 / (0.0254 * 12) ** 3) / 1000
+)  # kg CO2/1 m^3 natural gas
 
 gas_variable_rate = df_gas["Gas Variable Rate"].iloc[-12:].mean()  # $ / m^3
 
@@ -110,11 +112,18 @@ energy_use_kwh = df_gas["Gas Consumption"].iloc[-12:].sum() * kwh_per_cubic_mete
 furnace_efficiency = 0.95
 
 print("annual gas usage: %.1f m^3" % (df_gas["Gas Consumption"].iloc[-12:].sum()))
-print("annual heating energy usage: %.1f GJ (%.1f kWh)" % (energy_use_joules / 1e9, energy_use_kwh))
-print("carbon intensity (heating): %d g CO2 / kWh" % (kgCO2_per_cubic_meter / kwh_per_cubic_meter * 1000))
+print(
+    "annual heating energy usage: %.1f GJ (%.1f kWh)"
+    % (energy_use_joules / 1e9, energy_use_kwh)
+)
+print(
+    "carbon intensity (heating): %d g CO2 / kWh"
+    % (kgCO2_per_cubic_meter / kwh_per_cubic_meter * 1000)
+)
 print(
     "heating energy per m^3 natural gas (%d%% efficient furnace):"
-    " %.2f kWh / m^3" % (100 * furnace_efficiency, furnace_efficiency * kwh_per_cubic_meter)
+    " %.2f kWh / m^3"
+    % (100 * furnace_efficiency, furnace_efficiency * kwh_per_cubic_meter)
 )
 print("gas heating cost: $%.3f / kWh" % (gas_variable_rate / kwh_per_cubic_meter))
 print(
@@ -157,11 +166,19 @@ df_electricity.to_csv("Kitchener-Wilmot Hydro data.csv")
 #   https://www.opg.com/darlington-refurbishment/Documents/IntrinsikReport_GHG_OntarioPower.pdf
 
 cabron_intensity_kgCO2_per_kwh = 0.077
-print("annual electricity usage: %.1f kWh" % (df_electricity["Total Consumption"].iloc[-12:].sum()))
-print("annual electricity cost: $%.2f" % (df_electricity["Amount Due"].iloc[-12:].sum()))
+print(
+    "annual electricity usage: %.1f kWh"
+    % (df_electricity["Total Consumption"].iloc[-12:].sum())
+)
+print(
+    "annual electricity cost: $%.2f" % (df_electricity["Amount Due"].iloc[-12:].sum())
+)
 print(
     "annual CO2 emissions from electricity: %.2f kg"
-    % (df_electricity["Total Consumption"].iloc[-12:].sum() * cabron_intensity_kgCO2_per_kwh)
+    % (
+        df_electricity["Total Consumption"].iloc[-12:].sum()
+        * cabron_intensity_kgCO2_per_kwh
+    )
 )
 
 df_electricity
@@ -189,10 +206,16 @@ print(
     )
 )
 
-print("\nmonthly electricity offset: $%.2f" % (df_electricity["Total Consumption"].iloc[-12].mean() * 0.025))
+print(
+    "\nmonthly electricity offset: $%.2f"
+    % (df_electricity["Total Consumption"].iloc[-12].mean() * 0.025)
+)
 print("monthly gas offset: $%.2f" % (df_gas["Gas Consumption"].iloc[-12].mean() * 0.15))
 print(
     "total monthly offset: $%.2f"
-    % (df_electricity["Total Consumption"].iloc[-12].mean() * 0.025 + df_gas["Gas Consumption"].iloc[-12].mean() * 0.15)
+    % (
+        df_electricity["Total Consumption"].iloc[-12].mean() * 0.025
+        + df_gas["Gas Consumption"].iloc[-12].mean() * 0.15
+    )
 )
 # -

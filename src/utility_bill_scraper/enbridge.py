@@ -18,7 +18,10 @@ def get_bill_date(soup):
 
 
 def get_amount_due(soup):
-    pos_re = "left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*" "width:(?P<width>\d+)px.*height:(?P<height>\d+)"
+    pos_re = (
+        "left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*"
+        "width:(?P<width>\d+)px.*height:(?P<height>\d+)"
+    )
 
     def find_amount_due_now(tag):
         return tag.name == u"div" and tag.decode().find("Amount due now") >= 0
@@ -38,7 +41,8 @@ def get_amount_due(soup):
                 left = int(match.groupdict()["left"])
                 left + int(match.groupdict()["width"])
                 return (left > pos["right"]) and (
-                    (top >= pos["top"] and top <= pos["bottom"]) or (bottom >= pos["top"] and bottom <= pos["bottom"])
+                    (top >= pos["top"] and top <= pos["bottom"])
+                    or (bottom >= pos["top"] and bottom <= pos["bottom"])
                 )
         return False
 

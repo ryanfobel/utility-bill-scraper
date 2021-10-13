@@ -11,7 +11,10 @@ import arrow
 import numpy as np
 import pandas as pd
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+)
 
 from utility_bill_scraper import convert_divs_to_df, format_fields, process_pdf
 
@@ -28,7 +31,9 @@ def get_summary(soup):
         return tag.name == "span" and tag.decode().find("Your Account Summary") >= 0
 
     summary_fields = format_fields(soup.find_all(find_account_summary)[0].contents)
-    summary_data = format_fields(soup.find_all(find_seq_id)[0].next_sibling.contents[0].contents)
+    summary_data = format_fields(
+        soup.find_all(find_seq_id)[0].next_sibling.contents[0].contents
+    )
 
     summary_dict = dict(zip(summary_fields[1:], summary_data))
 
@@ -43,7 +48,9 @@ def get_summary(soup):
         top = match.groups()[0]
 
         # Find the second div with the same top pixel coordinate.
-        return format_fields(soup.find_all(style=re.compile("top:%spx" % top))[1].span.contents)[0]
+        return format_fields(
+            soup.find_all(style=re.compile("top:%spx" % top))[1].span.contents
+        )[0]
 
     summary_dict["Water Charges"] = find_charges("Water charges")
     summary_dict["Gas Charges"] = find_charges("Gas charges")
@@ -94,8 +101,14 @@ def get_water_and_sewer_charges(soup):
     water_type = water_type[1:]
 
     consumption = format_fields(water_div.next_sibling.next_sibling.contents[0])
-    rates = format_fields(water_div.next_sibling.next_sibling.next_sibling.next_sibling.contents[0])
-    charges = format_fields(water_div.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.contents[0])
+    rates = format_fields(
+        water_div.next_sibling.next_sibling.next_sibling.next_sibling.contents[0]
+    )
+    charges = format_fields(
+        water_div.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.contents[
+            0
+        ]
+    )
 
     for x in range(len(water_type)):
         result[water_type[x]] = {
@@ -179,7 +192,9 @@ def get_gas_charges(soup):
         # Charges can be grouped in different sections (e.g., if the gas rate
         # changes in the middle of the month). We only care about the last
         # section, because it contains the Fixed Delivery Charge.
-        charges = df[df["left"] > df[df["fields_str"] == "[u'Charges']"]["left"].iloc[0]].iloc[-1]["fields"]
+        charges = df[
+            df["left"] > df[df["fields_str"] == "[u'Charges']"]["left"].iloc[0]
+        ].iloc[-1]["fields"]
         charge_desc = df[df["fields_str"].str.find(" days") >= 0].iloc[-1]["fields"][1:]
         return dict(zip(charge_desc[-len(charges) :], charges))
     except AttributeError as error:
@@ -194,12 +209,20 @@ def get_gas_rates(soup):
     gas_div = soup.find_all(find_gas_rates)[0]
     gas_fields = format_fields(gas_div.contents[0])
     gas_fields = gas_fields[1:]
-    gas_rates = format_fields(gas_div.next_sibling.next_sibling.next_sibling.contents[0])
-    format_fields(gas_div.next_sibling.next_sibling.next_sibling.next_sibling.contents[0])
+    gas_rates = format_fields(
+        gas_div.next_sibling.next_sibling.next_sibling.contents[0]
+    )
+    format_fields(
+        gas_div.next_sibling.next_sibling.next_sibling.next_sibling.contents[0]
+    )
 
     return dict(
         zip(
-            [x + " Rate" for x in gas_fields if (x.find("HST") == -1) and x.find("Fixed") == -1],
+            [
+                x + " Rate"
+                for x in gas_fields
+                if (x.find("HST") == -1) and x.find("Fixed") == -1
+            ],
             gas_rates,
         )
     )
@@ -220,16 +243,28 @@ def convert_data_to_df(data):
 
     df = pd.DataFrame(data=dict(zip(cols, data_sets)))
 
-    df["Issue Date"] = [str(arrow.get(x, "MMM DD YYYY").date()) for x in df["Issue Date"]]
+    df["Issue Date"] = [
+        str(arrow.get(x, "MMM DD YYYY").date()) for x in df["Issue Date"]
+    ]
     df = df.set_index("Issue Date")
 
     # Extract water and gas consumption.
     water_consumption = [
-        np.sum([x["Total Consumption"] if "Total Consumption" in x else 0 for x in row["water consumption"]])
+        np.sum(
+            [
+                x["Total Consumption"] if "Total Consumption" in x else 0
+                for x in row["water consumption"]
+            ]
+        )
         for row in data
     ]
     gas_consumption = [
-        np.sum([x["Total Consumption"] if "Total Consumption" in x else 0 for x in row["gas consumption"]])
+        np.sum(
+            [
+                x["Total Consumption"] if "Total Consumption" in x else 0
+                for x in row["gas consumption"]
+            ]
+        )
         for row in data
     ]
     """
@@ -287,7 +322,9 @@ class KitchenerUtilitiesAPI:
         self._browser = None
         self._headless = headless
         self._temp_download_dir = tempfile.mkdtemp()
-        self._history_path = history_path or os.path.abspath(os.path.join(".", "data", self.name, "data.csv"))
+        self._history_path = history_path or os.path.abspath(
+            os.path.join(".", "data", self.name, "data.csv")
+        )
 
         ext = os.path.splitext(self._history_path)[1]
         supported_filetypes = [".csv"]
@@ -303,7 +340,9 @@ class KitchenerUtilitiesAPI:
         else:
             self._history = pd.DataFrame()
 
-        self._statement_path = statement_path or os.path.abspath(os.path.join(".", "data", self.name, "statements"))
+        self._statement_path = statement_path or os.path.abspath(
+            os.path.join(".", "data", self.name, "statements")
+        )
         self._timeout = timeout
 
     def _init_driver(self, browser="Firefox"):
@@ -325,7 +364,9 @@ class KitchenerUtilitiesAPI:
             options.set_preference("browser.download.folderList", 2)
             options.set_preference("browser.download.dir", self._temp_download_dir)
             options.set_preference("browser.download.useDownloadDir", True)
-            options.set_preference("browser.download.viewableInternally.enabledTypes", "")
+            options.set_preference(
+                "browser.download.viewableInternally.enabledTypes", ""
+            )
             options.set_preference(
                 "browser.helperApps.neverAsk.saveToDisk",
                 "application/pdf;text/plain;application/text;text/xml;application/xml",
@@ -352,7 +393,9 @@ class KitchenerUtilitiesAPI:
         self._driver = None
 
     def _login(self):
-        self._driver.get("https://ebilling.kitchener.ca/sap/bc/ui5_ui5/sap/ZUMCUI5/index.html")
+        self._driver.get(
+            "https://ebilling.kitchener.ca/sap/bc/ui5_ui5/sap/ZUMCUI5/index.html"
+        )
         self._driver.find_element_by_id("CANCEL_BUTTON ").click()
         self._driver.find_element_by_id("__field1").send_keys(self._user)
         self._driver.find_element_by_id("__field0").send_keys(self._password)
@@ -363,7 +406,9 @@ class KitchenerUtilitiesAPI:
         t_start = time.time()
         while time.time() - t_start < self._timeout:
             try:
-                pages = self._driver.find_element_by_id("headerNavigationBar").find_elements_by_tag_name("li")
+                pages = self._driver.find_element_by_id(
+                    "headerNavigationBar"
+                ).find_elements_by_tag_name("li")
                 keys = [x.text for x in pages]
                 result = dict(zip(keys, pages))
                 result.pop("", None)
@@ -374,7 +419,9 @@ class KitchenerUtilitiesAPI:
 
     def _get_contracts(self):
         # Pick the account (e.g., "Gas", "Water and Sewer", "Stormwater")
-        contract_table = self._driver.find_element_by_id("ContractTable-table").find_element_by_tag_name("tbody")
+        contract_table = self._driver.find_element_by_id(
+            "ContractTable-table"
+        ).find_element_by_tag_name("tbody")
         rows = contract_table.find_elements_by_tag_name("tr")
 
         contracts = [x.find_elements_by_tag_name("td")[0] for x in rows]
@@ -387,7 +434,9 @@ class KitchenerUtilitiesAPI:
         link = None
         while time.time() - t_start < self._timeout:
             try:
-                link = self._driver.find_element_by_id("__table1-paginator--firstPageLink")
+                link = self._driver.find_element_by_id(
+                    "__table1-paginator--firstPageLink"
+                )
                 link.location_once_scrolled_into_view
                 link.click()
                 return
@@ -443,7 +492,9 @@ class KitchenerUtilitiesAPI:
 
                 rows = [
                     [y for y in x.find_elements_by_tag_name("td")]
-                    for x in billing_table.find_element_by_tag_name("tbody").find_elements_by_tag_name("tr")
+                    for x in billing_table.find_element_by_tag_name(
+                        "tbody"
+                    ).find_elements_by_tag_name("tr")
                 ]
 
                 data = []
@@ -466,7 +517,8 @@ class KitchenerUtilitiesAPI:
                     data.append(row_data)
                     new_filepath = os.path.join(
                         self._statement_path,
-                        "%s - %s - $%s.pdf" % (date.isoformat(), self.name, row_data[3]),
+                        "%s - %s - $%s.pdf"
+                        % (date.isoformat(), self.name, row_data[3]),
                     )
 
                     def download_link(link, ext):
@@ -485,9 +537,13 @@ class KitchenerUtilitiesAPI:
                         filepath = None
                         # wait for the file to finish downloading
                         while time.time() - t_start < self._timeout:
-                            files = glob.glob(os.path.join(self._temp_download_dir, "*.%s" % ext))
+                            files = glob.glob(
+                                os.path.join(self._temp_download_dir, "*.%s" % ext)
+                            )
                             if len(files):
-                                filepath = os.path.join(self._temp_download_dir, files[0])
+                                filepath = os.path.join(
+                                    self._temp_download_dir, files[0]
+                                )
                                 time.sleep(0.5)
                                 break
                         if not filepath:
@@ -543,7 +599,9 @@ class KitchenerUtilitiesAPI:
         start_date = None
         if len(self._history):
             start_date = self._history.index[-1]
-        pdf_files = self.download_statements(start_date=start_date, max_downloads=max_downloads)
+        pdf_files = self.download_statements(
+            start_date=start_date, max_downloads=max_downloads
+        )
         return self._scrape_pdf_files(pdf_files)
 
     def _scrape_pdf_files(self, pdf_files=[]):
@@ -574,7 +632,9 @@ class KitchenerUtilitiesAPI:
             self._history = self._history.append(df)
 
             # If the parent directory of the history_path doesn't exist, create it.
-            history_parent = os.path.abspath(os.path.join(self._history_path, os.path.pardir))
+            history_parent = os.path.abspath(
+                os.path.join(self._history_path, os.path.pardir)
+            )
             if not os.path.exists(history_parent):
                 os.makedirs(history_parent)
 
@@ -596,7 +656,9 @@ class KitchenerUtilitiesAPI:
                     .find_element_by_tag_name("tbody")
                 )
                 rows = consumption_history.find_elements_by_tag_name("tr")
-                data = [[y.text for y in x.find_elements_by_tag_name("td")] for x in rows]
+                data = [
+                    [y.text for y in x.find_elements_by_tag_name("td")] for x in rows
+                ]
                 return data
 
             self._login()
@@ -628,8 +690,15 @@ class KitchenerUtilitiesAPI:
             self._close_driver()
 
         def convert_to_series(data):
-            dates = [arrow.get("%s 01 %s" % tuple(x.split(" ")), "MMMM DD YYYY").date() for x in list(data.keys())]
-            dates = ["%d-%02d-%02d" % (x.year, x.month, calendar.monthrange(x.year, x.month)[1]) for x in dates]
+            dates = [
+                arrow.get("%s 01 %s" % tuple(x.split(" ")), "MMMM DD YYYY").date()
+                for x in list(data.keys())
+            ]
+            dates = [
+                "%d-%02d-%02d"
+                % (x.year, x.month, calendar.monthrange(x.year, x.month)[1])
+                for x in dates
+            ]
             return pd.Series(list(data.values()), index=dates)
 
         return convert_to_series(results)

@@ -25,4 +25,3 @@ repos:
         entry: bash -c 'black "$@"; git add -u' --
         language: python
         types: [python]
-        args: ["--line-length=120"]

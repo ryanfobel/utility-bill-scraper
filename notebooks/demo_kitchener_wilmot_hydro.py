@@ -51,7 +51,9 @@ try:
     # Create a Kitchener-Wilmot Hydro API object with your user name and password
     from credentials import password, user
 
-    kwh_api = kwh.KitchenerWilmotHydroAPI(user[kwh.get_name()], password[kwh.get_name()], data_directory)
+    kwh_api = kwh.KitchenerWilmotHydroAPI(
+        user[kwh.get_name()], password[kwh.get_name()], data_directory
+    )
 
     print("Downloading invoices from %s..." % kwh_api.name)
     start_time = time.time()
@@ -61,7 +63,9 @@ try:
     bills_list = glob(os.path.join(kwh_api._invoice_directory, "*.pdf"))
 except ModuleNotFoundError:
     print("Using test data...")
-    bills_list = glob(os.path.join(os.path.join("..", "tests", kwh.get_name()), "*.pdf"))
+    bills_list = glob(
+        os.path.join(os.path.join("..", "tests", kwh.get_name()), "*.pdf")
+    )
 
 # +
 # Load csv with previously cached data if it exists
@@ -121,7 +125,10 @@ plt.legend(["Off Peak", "Mid Peak", "On Peak", "Total"])
 #   https://www.opg.com/darlington-refurbishment/Documents/IntrinsikReport_GHG_OntarioPower.pdf
 
 cabron_intensity_kgCO2_per_kwh = 0.077
-print("annual electricity usage: %.1f kWh" % (df_kwh["Total Consumption"].iloc[-12:].sum()))
+print(
+    "annual electricity usage: %.1f kWh"
+    % (df_kwh["Total Consumption"].iloc[-12:].sum())
+)
 print("annual electricity cost: $%.2f" % (df_kwh["Amount Due"].iloc[-12:].sum()))
 print(
     "annual CO2 emissions from electricity: %.2f kg"

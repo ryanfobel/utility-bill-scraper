@@ -52,8 +52,12 @@ load_dotenv()
 
 rcParams.update({"figure.figsize": (12, 6)})
 
-history_path = os.path.abspath(os.path.join("..", "data", "Kitchener Utilities", "data.csv"))
-statement_path = os.path.abspath(os.path.join("..", "data", "Kitchener Utilities", "statements"))
+history_path = os.path.abspath(
+    os.path.join("..", "data", "Kitchener Utilities", "data.csv")
+)
+statement_path = os.path.abspath(
+    os.path.join("..", "data", "Kitchener Utilities", "statements")
+)
 
 # +
 # Create a Kitchener Utilities API object with your user name and password
@@ -85,7 +89,9 @@ plt.ylabel("m$^3$")
 # 119.58 lbs CO2/1000 cubic feet of natural gas
 # 1.915 kg CO2/1 m^3 natural gas [119.58 lbs * (1 kg / 2.204623 lbs) *
 #   (1 ft^3 / (0.0254 * 12)**3 m^3) / 1000]
-kgCO2_per_cubic_meter = 119.58 * (1 / 2.204623) * (1 / (0.0254 * 12) ** 3) / 1000  # kg CO2/1 m^3 natural gas
+kgCO2_per_cubic_meter = (
+    119.58 * (1 / 2.204623) * (1 / (0.0254 * 12) ** 3) / 1000
+)  # kg CO2/1 m^3 natural gas
 
 # gas_variable_rate = df_gas['Gas Variable Rate'].iloc[-12:].mean()  # $ / m^3
 
