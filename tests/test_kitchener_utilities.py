@@ -1,5 +1,6 @@
 import sys
 import os
+import tempfile
 
 from dotenv import load_dotenv
 
@@ -52,11 +53,12 @@ def test_get_header_nav_bar():
 
 
 def test_download_statements():
+    statements_path = tempfile.mkdtemp()
+    history_path = os.path.join(statements_path, "data.csv")
+
     # Create a Kitchener Utilities API object with your user name and password
     user = os.getenv("KITCHENER_UTILITIES_USER")
     password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
-    ku_api = ku.KitchenerUtilitiesAPI(user, password)
-
-    ku_api = ku.KitchenerUtilitiesAPI(user, password)
+    ku_api = ku.KitchenerUtilitiesAPI(user, password, history_path, statements_path)
     pdf_files = ku_api.download_statements(max_downloads=1)
     assert len(pdf_files) > 0

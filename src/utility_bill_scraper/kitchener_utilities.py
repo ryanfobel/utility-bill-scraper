@@ -5,6 +5,7 @@ import os
 import tempfile
 import glob
 import calendar
+import shutil
 
 import arrow
 import pandas as pd
@@ -281,7 +282,7 @@ class KitchenerUtilitiesAPI:
         self._browser = None
         self._headless = headless
         self._temp_download_dir = tempfile.mkdtemp()
-        self._history_path = history_path or os.path.abspath(os.path.join(".", self.name, "data.csv"))
+        self._history_path = history_path or os.path.abspath(os.path.join(".", "data", self.name, "data.csv"))
 
         ext = os.path.splitext(self._history_path)[1]
         supported_filetypes = [".csv"]
@@ -297,7 +298,7 @@ class KitchenerUtilitiesAPI:
         else:
             self._history = pd.DataFrame()
 
-        self._statement_path = statement_path or os.path.abspath(os.path.join(".", self.name, "statements"))
+        self._statement_path = statement_path or os.path.abspath(os.path.join(".", "data", self.name, "statements"))
         self._timeout = timeout
 
     def _init_driver(self, browser="Firefox"):
@@ -494,7 +495,7 @@ class KitchenerUtilitiesAPI:
                         for img in row[0].find_elements_by_tag_name("img"):
                             if img.get_property("title") == "PDF":
                                 filepath = download_link(img, "pdf")
-                                os.rename(filepath, new_filepath)
+                                shutil.move(filepath, new_filepath)
 
                 return data
 
