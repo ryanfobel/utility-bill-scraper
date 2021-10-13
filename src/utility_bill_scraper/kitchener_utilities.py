@@ -283,7 +283,7 @@ class KitchenerUtilitiesAPI:
         self._temp_download_dir = tempfile.mkdtemp()
         self._history_path = history_path or os.path.abspath(os.path.join(".", self.name, "data.csv"))
 
-        ext = os.path.splitext(history_path)[1]
+        ext = os.path.splitext(self._history_path)[1]
         supported_filetypes = [".csv"]
         if ext not in supported_filetypes:
             raise UnsupportedFileTye(
