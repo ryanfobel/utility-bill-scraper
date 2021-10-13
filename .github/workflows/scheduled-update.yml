@@ -1,15 +1,9 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
-name: Python application
+name: Scheduled update
 
 on:
-  push:
-    branches:
-      - '**'
-  #pull_request:
-  #  branches:
-  #    - 'main'
+  schedule:
+    # Run everyday at midnight
+    - cron: "0 0 * * *"
 
 jobs:
   build:
@@ -22,16 +16,10 @@ jobs:
         python-version: 3.9
     - name: Install python3.9-venv and firefox
       run: sudo apt-get install python3.9-venv firefox
-    - name: Run image
+    - name: Install poetry
       uses: abatilo/actions-poetry@v2.0.0
       with:
         poetry-version: 1.1.0
-    #- name: Lint with flake8
-    #  run: |
-    #    # stop the build if there are Python syntax errors or undefined names
-    #    flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    #    # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-    #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Install latest gecko driver
       run: |
         pip install get-gecko-driver
@@ -39,12 +27,6 @@ jobs:
     - name: Poetry install
       run: |
         poetry install
-    #- name: Test with pytest
-    #  env:
-    #    KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
-    #    KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
-    #  run: |
-    #    poetry run pytest
     - name: Send email
       uses: dawidd6/action-send-mail@v3.5.0
       with:
