@@ -53,6 +53,6 @@ jobs:
         username: apikey
         password: ${{ secrets.SENDGRID_API_KEY }}
         subject: utility bill scraper
-        to: ryan@fobel.net
-        from: ryan@fobel.net
-        body: "Test email"
+        to: Ryan Fobel <ryan@fobel.net>
+        from: Ryan Fobel <notifications@github.com>
+        body: "Test email from github actions"
