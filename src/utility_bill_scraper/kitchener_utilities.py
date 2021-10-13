@@ -15,7 +15,7 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
 )
 
-from utility_bill_scraper import convert_divs_to_df, format_fields
+from utility_bill_scraper import convert_divs_to_df, format_fields, process_pdf
 
 
 def get_name():
@@ -24,10 +24,10 @@ def get_name():
 
 def get_summary(soup):
     def find_seq_id(tag):
-        return tag.name == u"div" and tag.decode().find("SEQ-ID") >= 0
+        return tag.name == "div" and tag.decode().find("SEQ-ID") >= 0
 
     def find_account_summary(tag):
-        return tag.name == u"span" and tag.decode().find("Your Account Summary") >= 0
+        return tag.name == "span" and tag.decode().find("Your Account Summary") >= 0
 
     summary_fields = format_fields(soup.find_all(find_account_summary)[0].contents)
     summary_data = format_fields(soup.find_all(find_seq_id)[0].next_sibling.contents[0].contents)
@@ -36,7 +36,7 @@ def get_summary(soup):
 
     def find_charges(name):
         def find_matching_div(tag):
-            return tag.name == u"div" and tag.decode().find(name) >= 0
+            return tag.name == "div" and tag.decode().find(name) >= 0
 
         tag = soup.find(find_matching_div)
 
@@ -47,15 +47,15 @@ def get_summary(soup):
         # Find the second div with the same top pixel coordinate.
         return format_fields(soup.find_all(style=re.compile("top:%spx" % top))[1].span.contents)[0]
 
-    summary_dict[u"Water Charges"] = find_charges("Water charges")
-    summary_dict[u"Gas Charges"] = find_charges("Gas charges")
+    summary_dict["Water Charges"] = find_charges("Water charges")
+    summary_dict["Gas Charges"] = find_charges("Gas charges")
 
     return summary_dict
 
 
 def get_water_consumption(soup):
     def find_total_consumption(tag):
-        return tag.name == u"div" and tag.decode().find("Total Consumption") >= 0
+        return tag.name == "div" and tag.decode().find("Total Consumption") >= 0
 
     div_list = soup.find_all(find_total_consumption)
 
@@ -74,7 +74,7 @@ def get_water_consumption(soup):
 
         # Match all divs with the same top pixel coordinate.
         def find_matching_top(tag):
-            return tag.name == u"div" and tag.decode().find("top:%spx" % top) >= 0
+            return tag.name == "div" and tag.decode().find("top:%spx" % top) >= 0
 
         divs = [format_fields(x.contents[0]) for x in soup.find_all(find_matching_top)]
         consumption.append(dict(zip(divs[0], divs[2])))
@@ -84,7 +84,7 @@ def get_water_consumption(soup):
 def get_water_and_sewer_charges(soup):
     def find_water_consumption(tag):
         return (
-            (tag.name == u"div")
+            (tag.name == "div")
             and (tag.decode().find("Consumption") >= 0)
             and (tag.decode().find("Total Consumption") == -1)
         )
@@ -92,7 +92,7 @@ def get_water_and_sewer_charges(soup):
     water_div = soup.find_all(find_water_consumption)[0]
     water_type = format_fields(water_div.next_sibling.contents[0])
 
-    result = {u"Time period": water_type[0]}
+    result = {"Time period": water_type[0]}
     water_type = water_type[1:]
 
     consumption = format_fields(water_div.next_sibling.next_sibling.contents[0])
@@ -101,9 +101,9 @@ def get_water_and_sewer_charges(soup):
 
     for x in range(len(water_type)):
         result[water_type[x]] = {
-            u"Consumption": consumption[x],
-            u"Rate": rates[x],
-            u"Charges": charges[x],
+            "Consumption": consumption[x],
+            "Rate": rates[x],
+            "Charges": charges[x],
         }
     return result
 
@@ -122,7 +122,7 @@ def get_water_rates(soup):
 
 def get_gas_consumption(soup):
     def find_total_consumption(tag):
-        return tag.name == u"div" and tag.decode().find("Total Consumption") >= 0
+        return tag.name == "div" and tag.decode().find("Total Consumption") >= 0
 
     div_list = soup.find_all(find_total_consumption)
 
@@ -139,7 +139,7 @@ def get_gas_consumption(soup):
 
         # Match all divs with the same top pixel coordinate.
         def find_matching_top(tag):
-            return tag.name == u"div" and tag.decode().find("top:%spx" % top) >= 0
+            return tag.name == "div" and tag.decode().find("top:%spx" % top) >= 0
 
         divs = [format_fields(x.contents[0]) for x in soup.find_all(find_matching_top)]
 
@@ -153,14 +153,14 @@ def get_gas_charges(soup):
         pos_re = r"left:(?P<left>\d+)px.*top:(?P<top>\d+)px.*width:(?P<width>\d+)px.*height:(?P<height>\d+)"
 
         def find_gas_section(tag):
-            return tag.name == u"div" and tag.decode().find("GAS") >= 0
+            return tag.name == "div" and tag.decode().find("GAS") >= 0
 
         tag = soup.find(find_gas_section)
         pos = re.search(pos_re, tag.decode()).groupdict()
         top_bound = int(pos["top"])
 
         def find_gas_charges(tag):
-            return tag.name == u"div" and tag.decode().find("Gas charges") >= 0
+            return tag.name == "div" and tag.decode().find("Gas charges") >= 0
 
         tag = soup.find(find_gas_charges)
         pos = re.search(pos_re, tag.decode()).groupdict()
@@ -171,7 +171,7 @@ def get_gas_charges(soup):
             match = re.search(pos_re, tag.decode())
             if match:
                 top = int(match.groupdict()["top"])
-                return top >= top_bound and top < bottom_bound and tag.name == u"div"
+                return top >= top_bound and top < bottom_bound and tag.name == "div"
             return False
 
         df = convert_divs_to_df(soup.find_all(find_divs_within_bounds))
@@ -191,7 +191,7 @@ def get_gas_charges(soup):
 
 def get_gas_rates(soup):
     def find_gas_rates(tag):
-        return tag.name == u"div" and tag.decode().find("Gas Fixed Delivery Charge") >= 0
+        return tag.name == "div" and tag.decode().find("Gas Fixed Delivery Charge") >= 0
 
     gas_div = soup.find_all(find_gas_rates)[0]
     gas_fields = format_fields(gas_div.contents[0])
@@ -267,19 +267,37 @@ class Timeout(Exception):
     pass
 
 
+class UnsupportedFileTye(Exception):
+    pass
+
+
 class KitchenerUtilitiesAPI:
     name = get_name()
 
-    def __init__(self, user, password, data_directory=".", headless=True, timeout=10):
+    def __init__(self, user=None, password=None, history_path=None, statement_path=None, headless=True, timeout=10):
         self._user = user
         self._password = password
         self._driver = None
         self._browser = None
         self._headless = headless
-        self._invoice_list = None
         self._temp_download_dir = tempfile.mkdtemp()
-        self._data_directory = data_directory
-        self._invoice_directory = None
+        self._history_path = history_path or os.path.abspath(os.path.join(".", self.name, "data.csv"))
+
+        ext = os.path.splitext(history_path)[1]
+        supported_filetypes = [".csv"]
+        if ext not in supported_filetypes:
+            raise UnsupportedFileTye(
+                "`history_path` has an invalid filetype. Acceptable extensions are "
+                f'{",".join([f"`{x}`" for x in supported_filetypes])}'
+            )
+
+        if os.path.exists(self._history_path):
+            # Load csv with previously cached data if it exists
+            self._history = pd.read_csv(history_path).set_index("Issue Date")
+        else:
+            self._history = pd.DataFrame()
+
+        self._statement_path = statement_path or os.path.abspath(os.path.join(".", self.name, "statements"))
         self._timeout = timeout
 
     def _init_driver(self, browser="Firefox"):
@@ -315,6 +333,13 @@ class KitchenerUtilitiesAPI:
                 options.add_argument("--disable-gpu")
                 options.add_argument("--no-sandbox")
             self._driver = webdriver.Firefox(options=options)
+
+    def history(self):
+        return self._history
+
+    def __del__(self):
+        if self._driver:
+            self._close_driver()
 
     def _close_driver(self):
         self._driver.close()
@@ -358,17 +383,13 @@ class KitchenerUtilitiesAPI:
             try:
                 link = self._driver.find_element_by_id("__table1-paginator--firstPageLink")
                 link.location_once_scrolled_into_view
-                break
+                link.click()
+                return
             except NoSuchElementException:
                 pass
             except StaleElementReferenceException:
                 pass
-        if link:
-            link.click()
-            time.sleep(0.5)
-        else:
-            raise Timeout
-        return
+        raise Timeout
 
     def _get_pages(self):
         # Get a list of the pages available
@@ -391,15 +412,13 @@ class KitchenerUtilitiesAPI:
             raise Timeout
         return None
 
-    def download_invoices(self, start_date=None, end_date=None):
-        if self._invoice_list is not None:
-            return self._invoice_list
-
+    def download_statements(self, start_date=None, end_date=None, max_downloads=None):
         self._init_driver()
 
-        self._invoice_directory = os.path.abspath(os.path.join(self._data_directory, self.name, "invoices"))
-        if not os.path.isdir(self._invoice_directory):
-            os.makedirs(self._invoice_directory)
+        if not os.path.isdir(self._statement_path):
+            os.makedirs(self._statement_path)
+
+        downloaded_files = []
 
         try:
             self._login()
@@ -411,8 +430,8 @@ class KitchenerUtilitiesAPI:
                 end_date = arrow.get(end_date).date()
 
             def get_data():
-                # Iterate through the invoices in reverse chronological order
-                # (i.e., newest invoices are first).
+                # Iterate through the statements in reverse chronological order
+                # (i.e., newest statements are first).
 
                 billing_table = self._driver.find_element_by_id("__table1-table")
 
@@ -435,9 +454,12 @@ class KitchenerUtilitiesAPI:
                     if end_date and date > end_date:
                         continue
 
+                    if max_downloads and len(downloaded_files) >= max_downloads:
+                        break
+
                     data.append(row_data)
                     new_filepath = os.path.join(
-                        self._invoice_directory,
+                        self._statement_path,
                         "%s - %s - $%s.pdf" % (date.isoformat(), self.name, row_data[3]),
                     )
 
@@ -466,8 +488,9 @@ class KitchenerUtilitiesAPI:
                             raise Timeout
                         return filepath
 
+                    downloaded_files.append(new_filepath)
                     if not os.path.exists(new_filepath):
-                        # download the pdf invoice
+                        # download the pdf statement
                         for img in row[0].find_elements_by_tag_name("img"):
                             if img.get_property("title") == "PDF":
                                 filepath = download_link(img, "pdf")
@@ -507,18 +530,52 @@ class KitchenerUtilitiesAPI:
         finally:
             self._close_driver()
 
-        # Convert to a dictionary
-        results = {}
-        for i, name in enumerate(["Invoice ID", "Invoice Date", "Due Date", "Invoice Amount"]):
-            results[name] = [x[i] for x in data]
+        return downloaded_files
 
-        # Reformat dates
-        for name in ["Invoice Date", "Due Date"]:
-            results[name] = [arrow.get(x, "MM/DD/YYYY").date().isoformat() for x in results[name]]
+    def update(self, max_downloads=None):
+        # Download any new statements.
+        start_date = None
+        if len(self._history):
+            start_date = self._history.index[-1]
+        pdf_files = self.download_statements(start_date=start_date, max_downloads=max_downloads)
+        return self._scrape_pdf_files(pdf_files)
 
-        self._invoice_list = pd.DataFrame(results)
+    def _scrape_pdf_files(self, pdf_files=[]):
+        if len(pdf_files) is 0:
+            pdf_files = glob.glob(os.path.join(self._statement_path, "*.pdf"))
 
-        return self._invoice_list
+        cached_invoice_dates = list(self._history.index)
+
+        # Scrape data from pdf files
+        data = []
+        for pdf_file in pdf_files:
+            date = os.path.splitext(os.path.basename(pdf_file))[0].split(" - ")[0]
+
+            # If we've already scraped this pdf, continue
+            if date not in cached_invoice_dates:
+                print("Scrape data from %s" % pdf_file)
+                try:
+                    result = process_pdf(pdf_file, rename=True)
+                    if result:
+                        data.append(result)
+                except Exception as e:
+                    print(e)
+
+        # Convert the list of dictionaries into a dictionary of data frames (one for
+        # each utility in the dataset).
+        if len(data):
+            df = convert_data_to_df(data)
+            self._history = self._history.append(df)
+
+            # If the parent directory of the history_path doesn't exist, create it.
+            history_parent = os.path.abspath(os.path.join(self._history_path, os.path.pardir))
+            if not os.path.exists(history_parent):
+                os.makedirs(history_parent)
+
+            # Update csv file
+            self._history.to_csv(self._history_path)
+
+            return df
 
     def get_consumption_history(self, contract):
         self._init_driver()
