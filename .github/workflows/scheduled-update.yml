@@ -1,0 +1,40 @@
+name: Scheduled update
+
+on:
+  schedule:
+    # Run everyday at midnight
+    - cron: "0 0 * * *"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    - name: Install python3.9-venv and firefox
+      run: sudo apt-get install python3.9-venv firefox
+    - name: Install poetry
+      uses: abatilo/actions-poetry@v2.0.0
+      with:
+        poetry-version: 1.1.0
+    - name: Install latest gecko driver
+      run: |
+        pip install get-gecko-driver
+        get-gecko-driver --download-latest --extract    
+    - name: Poetry install
+      run: |
+        poetry install
+    - name: Send email
+      uses: dawidd6/action-send-mail@v3.5.0
+      with:
+        server_address: smtp.gmail.com
+        server_port: 465
+        username: ryan@fobel.net
+        password: ${{ secrets.GMAIL_APP_PASSWORD }}
+        subject: utility bill scraper
+        to: Ryan Fobel <ryan@fobel.net>
+        from: Ryan Fobel <ryan@fobel.net>
+        body: "Test email from github actions"

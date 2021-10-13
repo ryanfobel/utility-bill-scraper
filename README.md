@@ -1,4 +1,6 @@
-# Utility bill scraper for extracting energy usage from pdfs
+# Utility bill scraper for extracting energy usage from pdfs/websites
+
+[![build](https://github.com/ryanfobel/utility-bill-scraper/actions/workflows/build.yml/badge.svg)](https://github.com/ryanfobel/utility-bill-scraper/actions/workflows/build.yml)
 
 Extract data from a series of monthly utility bills. Currently, this library
 supports:
@@ -6,11 +8,7 @@ supports:
  * [Kitchener Utilities (gas & water)](https://www.kitchenerutilities.ca)
  * [Kitchener-Wilmot Hydro (electricity)](https://www.kwhydro.on.ca)
 
-# Setup
-
-The following instructions assume that you have
-[Anaconda](https://www.anaconda.com/distribution/) or
-[Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed.
+# Install
 
 ```
 pip install utility-bill-scraper

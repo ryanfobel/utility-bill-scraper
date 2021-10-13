@@ -1,6 +1,6 @@
+import argparse
 import os
 import sys
-import argparse
 
 from dotenv import load_dotenv
 
@@ -44,13 +44,19 @@ def main():
     parser.add_argument("--history-path", help=".xls,.csv, or url of the history file.")
     parser.add_argument("--utility-name", help="Name of the utility.")
 
-    subparsers = parser.add_subparsers(title="subcommands", dest="subcommand", help="available sub-commands.")
+    subparsers = parser.add_subparsers(
+        title="subcommands", dest="subcommand", help="available sub-commands."
+    )
     subparsers.required = True
     parser_update = subparsers.add_parser("update")
     parser_update.add_argument("-u", "--user", help="user name")
     parser_update.add_argument("-p", "--password", help="password")
-    parser_update.add_argument("--statement-path", help="path to save downloaded statements")
-    parser_update.add_argument("-m", "--max-downloads", help="maximum number of statements to download")
+    parser_update.add_argument(
+        "--statement-path", help="path to save downloaded statements"
+    )
+    parser_update.add_argument(
+        "-m", "--max-downloads", help="maximum number of statements to download"
+    )
 
     parser_export = subparsers.add_parser("export")
     parser_export.add_argument("-o", "--output", help="export file path.")
@@ -81,7 +87,9 @@ def main():
             missing_required_arg("user")
         if password is None:
             missing_required_arg("password")
-        update(utility_name, user, password, history_path, statement_path, max_downloads)
+        update(
+            utility_name, user, password, history_path, statement_path, max_downloads
+        )
     elif args.subcommand == "export":
         output = args.output or os.getenv("OUTPUT")
         if output is None:

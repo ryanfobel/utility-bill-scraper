@@ -2,9 +2,8 @@ import re
 
 import arrow
 import pandas as pd
-import numpy as np
 
-from utility_bill_scraper import format_fields, is_number
+from utility_bill_scraper import format_fields
 
 
 def get_name():
@@ -40,7 +39,7 @@ def get_amount_due(soup):
                 top = int(match.groupdict()["top"])
                 bottom = top + int(match.groupdict()["height"])
                 left = int(match.groupdict()["left"])
-                right = left + int(match.groupdict()["width"])
+                left + int(match.groupdict()["width"])
                 return (left > pos["right"]) and (
                     (top >= pos["top"] and top <= pos["bottom"])
                     or (bottom >= pos["top"] and bottom <= pos["bottom"])

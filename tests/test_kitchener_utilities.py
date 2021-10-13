@@ -1,7 +1,6 @@
 import sys
 import os
-import glob
-import datetime as dt
+import tempfile
 
 from dotenv import load_dotenv
 
@@ -11,7 +10,6 @@ load_dotenv()
 sys.path.insert(0, os.path.abspath("src"))
 
 import utility_bill_scraper.kitchener_utilities as ku
-from utility_bill_scraper import process_pdf
 
 """
 def test_instantiate_api_class():
@@ -31,7 +29,7 @@ def test_init_driver():
     api = ku.KitchenerUtilitiesAPI(user, password, data_directory)
     api._init_driver()
 
-def test_login_driver():
+def test_login():
     data_directory = os.path.abspath(os.path.join("..", "data"))
 
     # Create a Kitchener Utilities API object with your user name and password
@@ -51,33 +49,16 @@ def test_get_header_nav_bar():
     api._init_driver()
     api._login()
     api._get_header_nav_bar()["BILLING"].click()
-
-def test_download_invoices():
-    data_directory = os.path.abspath(os.path.join("..", "data"))
-
-    # Create a Kitchener Utilities API object with your user name and password
-    user = os.getenv("KITCHENER_UTILITIES_USER")
-    password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
-    ku_api = ku.KitchenerUtilitiesAPI(user, password, data_directory)
-
-    import datetime as dt
-    start_date = (dt.datetime.now().date() - dt.timedelta(weeks=8)).isoformat()
-    invoices = ku_api.download_invoices(start_date=start_date)
-    assert len(invoices) > 0
 """
 
 
-def test_process_pdf():
-    data_directory = os.path.abspath(os.path.join("..", "data"))
+def test_download_statements():
+    statements_path = tempfile.mkdtemp()
+    history_path = os.path.join(statements_path, "data.csv")
 
     # Create a Kitchener Utilities API object with your user name and password
     user = os.getenv("KITCHENER_UTILITIES_USER")
     password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
-    ku_api = ku.KitchenerUtilitiesAPI(user, password, data_directory)
-    start_date = (dt.datetime.now().date() - dt.timedelta(weeks=8)).isoformat()
-    invoices = ku_api.download_invoices(start_date=start_date)
-    # assert len(invoices) > 0
-
-    pdf_file = glob.glob(ku_api._invoice_directory + "\\" + "*")[-1]
-    result = process_pdf(pdf_file, rename=True)
-    print(result)
+    ku_api = ku.KitchenerUtilitiesAPI(user, password, history_path, statements_path)
+    pdf_files = ku_api.download_statements(max_downloads=1)
+    assert len(pdf_files) > 0

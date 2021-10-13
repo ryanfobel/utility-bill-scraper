@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Python application
+name: build
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
   #    - 'main'
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -22,26 +22,29 @@ jobs:
         python-version: 3.9
     - name: Install python3.9-venv and firefox
       run: sudo apt-get install python3.9-venv firefox
-    - name: Run image
+    - name: Install poetry
       uses: abatilo/actions-poetry@v2.0.0
       with:
         poetry-version: 1.1.0
-    #- name: Lint with flake8
-    #  run: |
-    #    # stop the build if there are Python syntax errors or undefined names
-    #    flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    #    # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-    #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Poetry install
+      run: |
+        poetry install
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Check style with black
+      run: |
+        poetry run black . --check
     - name: Install latest gecko driver
       run: |
         pip install get-gecko-driver
         get-gecko-driver --download-latest --extract    
-    - name: Poetry install
-      run: |
-        poetry install
     - name: Test with pytest
       env:
         KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
         KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
       run: |
-        poetry run pytest
+        poetry run pytest --cov

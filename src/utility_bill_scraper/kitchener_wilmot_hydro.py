@@ -1,22 +1,18 @@
+import datetime
+import glob
+import os
+import random
 import re
 import tempfile
 import time
-import os
-import datetime
-import glob
-import random
 
 import arrow
 import numpy as np
 import pandas as pd
 from selenium import webdriver
-from selenium.common.exceptions import (
-    NoSuchElementException,
-    ElementClickInterceptedException,
-    StaleElementReferenceException,
-)
+from selenium.common.exceptions import NoSuchElementException
 
-from utility_bill_scraper import format_fields, is_number
+from utility_bill_scraper import format_fields
 
 
 def get_name():
