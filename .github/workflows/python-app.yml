@@ -45,3 +45,14 @@ jobs:
         KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
       run: |
         poetry run pytest
+    - name: Send email
+      uses: dawidd6/action-send-mail@v3.5.0
+      with:
+        server_address: smtp.sendgrid.net
+        server_port: 465
+        username: apikey
+        password: ${{ secrets.SENDGRID_API_KEY }}
+        subject: utility bill scraper
+        to: ryan@fobel.net
+        from: ryan@fobel.net
+        body: "Test email"
