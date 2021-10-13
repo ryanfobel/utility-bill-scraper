@@ -39,12 +39,12 @@ jobs:
     - name: Poetry install
       run: |
         poetry install
-    - name: Test with pytest
-      env:
-        KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
-        KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
-      run: |
-        poetry run pytest
+    #- name: Test with pytest
+    #  env:
+    #    KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
+    #    KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
+    #  run: |
+    #    poetry run pytest
     - name: Send email
       uses: dawidd6/action-send-mail@v3.5.0
       with:
