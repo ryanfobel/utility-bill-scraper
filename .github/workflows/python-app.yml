@@ -48,10 +48,10 @@ jobs:
     - name: Send email
       uses: dawidd6/action-send-mail@v3.5.0
       with:
-        server_address: smtp.sendgrid.net
+        server_address: smtp.gmail.com
         server_port: 465
-        username: apikey
-        password: ${{ secrets.SENDGRID_API_KEY }}
+        username: ryan@fobel.net
+        password: ${{ secrets.GMAIL_APP_PASSWORD }}
         subject: utility bill scraper
         to: Ryan Fobel <ryan@fobel.net>
         from: Ryan Fobel <ryan@fobel.net>
