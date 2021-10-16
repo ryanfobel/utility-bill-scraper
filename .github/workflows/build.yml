@@ -7,9 +7,8 @@ on:
   push:
     branches:
       - '**'
-  #pull_request:
-  #  branches:
-  #    - 'main'
+on:
+  create
 
 jobs:
   test:
