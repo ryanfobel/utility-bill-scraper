@@ -48,3 +48,11 @@ jobs:
         KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
       run: |
         poetry run pytest --cov
+    - name: Publish to PyPi
+      env:
+        USERNAME: ${{ secrets.PYPI_USERNAME }}
+        PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        pip install poetry-dynamic-versioning
+        poetry-dynamic-versioning
+        poetry publish -u USERNAME -p PASSWORD
