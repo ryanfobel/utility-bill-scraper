@@ -25,7 +25,7 @@ pytest-cov = "^3.0.0"
 
 [tool.poetry-dynamic-versioning]
 enable = true
-format = "v{base}{dirty}"
+format = "v{base}"
 bump = true
 
 [build-system]
