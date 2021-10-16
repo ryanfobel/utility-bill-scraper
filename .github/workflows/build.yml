@@ -55,4 +55,4 @@ jobs:
       run: |
         pip install poetry-dynamic-versioning
         poetry-dynamic-versioning
-        poetry publish --build -u USERNAME -p PASSWORD
+        poetry publish --build -u $USERNAME -p $PASSWORD
