@@ -1,14 +1,12 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: build
+name: test
 
 on:
   push:
     branches:
-      - 'main'
-    tags:
-      - 'v**'
+      - '!main'   # excludes main
 
 jobs:
   test:
@@ -47,11 +45,3 @@ jobs:
         KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
       run: |
         poetry run pytest --cov
-    - name: Publish to PyPi
-      env:
-        USERNAME: ${{ secrets.PYPI_USERNAME }}
-        PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      run: |
-        pip install poetry-dynamic-versioning
-        poetry-dynamic-versioning
-        poetry publish --build -u $USERNAME -p $PASSWORD
