@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "utility-bill-scraper"
-version = "v0.2.2dirty"
+version = "v0.2.2"
 description = "Utility bill scraper for extracting data from pdfs and websites."
 authors = ["Ryan Fobel <ryan@fobel.net>"]
 
