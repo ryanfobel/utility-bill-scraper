@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "utility-bill-scraper"
-version = "0.1.0"
+version = "0.1.1.post53.dev0+7253391"
 description = "Utility bill scraper for extracting data from pdfs and websites."
 authors = ["Ryan Fobel <ryan@fobel.net>"]
 
@@ -23,6 +23,9 @@ flake8 = "^4.0.1"
 black = "^21.9b0"
 pytest-cov = "^3.0.0"
 
+[tool.poetry-dynamic-versioning]
+enable = true
+
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
 build-backend = "poetry.core.masonry.api"
