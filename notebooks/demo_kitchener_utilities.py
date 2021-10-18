@@ -82,7 +82,7 @@ plt.figure()
 plt.bar(df_ku.index, df_ku["Water Consumption"], width=0.9)
 plt.xticks(rotation=90)
 plt.title("Water Consumption")
-plt.ylabel("m$^3$")
+plt.ylabel("m$^3$");
 
 # +
 # Natural gas emission factor
@@ -118,7 +118,7 @@ ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([kgCO2_per_cubic_meter * y / 1e3 for y in ylim])
-plt.title("Annual home CO$_2$e emissions from natural gas")
+plt.title("Annual home CO$_2$e emissions from natural gas");
 
 # +
 n_years_history = 1
@@ -151,6 +151,4 @@ ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([kgCO2_per_cubic_meter * y / 1e3 for y in ylim])
-plt.title("Cumulative CO$_2$e emissions from natural gas per year")
-
-# -
+plt.title("Cumulative CO$_2$e emissions from natural gas per year");
