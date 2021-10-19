@@ -13,8 +13,6 @@ dependencies:
   - python-dotenv
   - jupyterlab
   - jupytext
-  - matplotlib
-  - gspread
   - pip
   - google-api-python-client
   - geckodriver
