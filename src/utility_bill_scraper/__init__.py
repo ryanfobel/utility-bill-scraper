@@ -9,7 +9,6 @@ import subprocess
 import tempfile
 
 import arrow
-import gspread
 import pandas as pd
 from apiclient import discovery
 from bs4 import BeautifulSoup
