@@ -16,5 +16,6 @@ dependencies:
   - matplotlib
   - gspread
   - pip
+  - apiclient
   - pip:
     - get-gecko-driver
