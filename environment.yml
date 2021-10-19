@@ -17,5 +17,5 @@ dependencies:
   - gspread
   - pip
   - google-api-python-client
-  - pip:
-    - get-gecko-driver
+  - geckodriver
+  - firefox
