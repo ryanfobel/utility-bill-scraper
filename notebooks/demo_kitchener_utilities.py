@@ -18,25 +18,24 @@
 #
 # This notebook demonstrates scraping of data from the [Kitchener Utilities](https://www.kitchenerutilities.ca) website and gas & water bills (pdfs).
 #
-# ## Setup instructions:
+# ## Instructions
 #
-# 1. Download the [firefox webdriver](https://github.com/mozilla/geckodriver/releases/) and put it somewhere on your path.
-#
-# 2. Create a new text file called `.env` in this directory to provide your login credentials (i.e., replace `username` and `password`):
-#
-# ```sh
-# KITCHENER_UTILITIES_USER=username
-# KITCHENER_UTILITIES_PASSWORD=password
-# ```
+# Fill in your `username` and `password` below, then run all of the cells in the notebook. Data is saved in the directory `../data`.
+# -
+
+username = ""
+password = ""
 
 # +
 # %load_ext autoreload
 # %autoreload 2
+# %matplotlib inline
 
 import datetime as dt
 import os
 import sys
 
+# Update the path to include the src directory
 sys.path.insert(0, os.path.join("..", "src"))
 
 import matplotlib.pyplot as plt
@@ -46,74 +45,53 @@ from matplotlib import rcParams
 
 import utility_bill_scraper.kitchener_utilities as ku
 
+# Load the `.env` file into the environment if it exists
 load_dotenv()
-
-# %matplotlib inline
 
 rcParams.update({"figure.figsize": (12, 6)})
 
-# Data path can be either a local folder, e.g.:
-#   data_path = os.path.abspath(os.path.join("..", "data"))
-# or it can be a url to a google drive folder.
-data_path = (
-    "https://drive.google.com/drive/u/0/folders/13ai3ELMsIrhjFGcv2Lqbwzb4sGkEWK-Y"
-)
+# If we haven't set a username/password, try getting them from
+# environment variables.
+if not username:
+    username = os.getenv("KITCHENER_UTILITIES_USER")
+if not password:
+    password = os.getenv("KITCHENER_UTILITIES_PASSWORD", password)
 
-# +
-# Create a Kitchener Utilities API object with your user name and password
-username = os.getenv("KITCHENER_UTILITIES_USER")
-password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
-google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
+# Set the path where data is saved.
+data_path = os.path.join("..", "data")
 
-ku_api = ku.KitchenerUtilitiesAPI(
-    username, password, data_path, google_sa_credentials=google_sa_credentials
-)
+ku_api = ku.KitchenerUtilitiesAPI(username, password, data_path)
 
-updates = ku_api.update()
+# Get up to 24 statements (the most recent).
+updates = ku_api.update(24)
 if updates is not None:
     print(f"{ len(updates) } statements_downloaded")
 ku_api.history().tail()
 
 # +
+# Plot consumption history
 df_ku = ku_api.history()
 
 plt.figure()
 plt.bar(df_ku.index, df_ku["Gas Consumption"], width=0.9)
 plt.xticks(rotation=90)
-plt.title("Gas Consumption")
+plt.title("Monthly Gas Consumption")
 plt.ylabel("m$^3$")
 
 plt.figure()
 plt.bar(df_ku.index, df_ku["Water Consumption"], width=0.9)
 plt.xticks(rotation=90)
-plt.title("Water Consumption")
+plt.title("Monthly Water Consumption")
 plt.ylabel("m$^3$")
 
 # +
-# Natural gas emission factor
-# 119.58 lbs CO2/1000 cubic feet of natural gas
-# 1.915 kg CO2/1 m^3 natural gas [119.58 lbs * (1 kg / 2.204623 lbs) *
-#   (1 ft^3 / (0.0254 * 12)**3 m^3) / 1000]
-kgCO2_per_cubic_meter = (
-    119.58 * (1 / 2.204623) * (1 / (0.0254 * 12) ** 3) / 1000
-)  # kg CO2/1 m^3 natural gas
+# Plot annual CO2 emissions
 
-# gas_variable_rate = df_gas['Gas Variable Rate'].iloc[-12:].mean()  # $ / m^3
+from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
 
-# Natural gas energy density
-# 1,037 Btu / ft^3 (https://www.eia.gov/tools/faqs/faq.php?id=45&t=8)
-# Energy per m^3: 1,037 Btu / ft^3 * 1055.1 J / 1 Btu * 1 ft^3 /
-#   (0.0254 * 12)**3 m^3
-#   37 MJ/m3 (https://hypertextbook.com/facts/2002/JanyTran.shtml)
-
-joules_per_cubic_meter = 1037 * 1055.1 / (0.0254 * 12) ** 3  # J / m^3
-kwh_per_joule = 1.0 / (60 * 60 * 1000)
-kwh_per_cubic_meter = joules_per_cubic_meter * kwh_per_joule
-
-df_ku["kgCO2"] = df_ku["Gas Consumption"] * kgCO2_per_cubic_meter
+df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
 df_ku["year"] = [int(x[0:4]) for x in df_ku.index]
 df_ku["month"] = [int(x[5:7]) for x in df_ku.index]
-# -
 
 plt.figure()
 df_ku.groupby("year").sum()["Gas Consumption"].plot.bar(width=0.9)
@@ -122,17 +100,24 @@ ylim = plt.ylim()
 ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
-plt.ylim([kgCO2_per_cubic_meter * y / 1e3 for y in ylim])
+plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Annual home CO$_2$e emissions from natural gas")
 
 # +
+# Plot CO2 emissions vs previous year
 n_years_history = 1
 
 plt.figure()
 for year, df_year in df_ku.groupby("year"):
     if year >= dt.datetime.utcnow().year - n_years_history:
         df_year.sort_values("month")
-        plt.plot(df_year["month"], df_year["Gas Consumption"], label=year)
+        plt.bar(
+            df_year["month"],
+            df_year["Gas Consumption"],
+            label=year,
+            alpha=0.5,
+            width=0.9,
+        )
 plt.legend()
 plt.ylabel("m$^3$")
 plt.xlabel("Month")
@@ -140,14 +125,20 @@ ylim = plt.ylim()
 ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
-plt.ylim([kgCO2_per_cubic_meter * y / 1e3 for y in ylim])
+plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Monthly home CO$_2$e emissions from natural gas")
 
 plt.figure()
 for year, df_year in df_ku.groupby("year"):
     if year >= dt.datetime.utcnow().year - n_years_history:
-        df_year.sort_values("month")
-        plt.plot(df_year["month"], np.cumsum(df_year["Gas Consumption"]), label=year)
+        df_year.sort_values("month", inplace=True)
+        plt.bar(
+            df_year["month"],
+            np.cumsum(df_year["Gas Consumption"]),
+            label=year,
+            alpha=0.5,
+            width=0.9,
+        )
 plt.legend()
 plt.ylabel("m$^3$")
 plt.xlabel("Month")
@@ -155,6 +146,6 @@ ylim = plt.ylim()
 ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
-plt.ylim([kgCO2_per_cubic_meter * y / 1e3 for y in ylim])
+plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Cumulative CO$_2$e emissions from natural gas per year")
 # -

@@ -21,6 +21,24 @@ DEFAULT_SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
+# Natural gas emission factor
+# 119.58 lbs CO2/1000 cubic feet of natural gas
+# 1.915 kg CO2/1 m^3 natural gas [119.58 lbs * (1 kg / 2.204623 lbs) *
+#   (1 ft^3 / (0.0254 * 12)**3 m^3) / 1000]
+GAS_KGCO2_PER_CUBIC_METER = (
+    119.58 * (1 / 2.204623) * (1 / (0.0254 * 12) ** 3) / 1000
+)  # kg CO2/1 m^3 natural gas
+
+# Natural gas energy density
+# 1,037 Btu / ft^3 (https://www.eia.gov/tools/faqs/faq.php?id=45&t=8)
+# Energy per m^3: 1,037 Btu / ft^3 * 1055.1 J / 1 Btu * 1 ft^3 /
+#   (0.0254 * 12)**3 m^3
+#   37 MJ/m3 (https://hypertextbook.com/facts/2002/JanyTran.shtml)
+
+GAS_JOULES_PER_CUBIC_METER = 1037 * 1055.1 / (0.0254 * 12) ** 3  # J / m^3
+KWH_PER_JOULE = 1.0 / (60 * 60 * 1000)
+GAS_KWH_PER_CUBIC_METER = GAS_JOULES_PER_CUBIC_METER * KWH_PER_JOULE
+
 
 def is_number(s):
     """Returns True if string is a number."""
