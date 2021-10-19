@@ -38,7 +38,7 @@ jobs:
     - name: Install latest gecko driver
       run: |
         pip install get-gecko-driver
-        get-gecko-driver --download-latest --extract    
+        get-gecko-driver --download-latest --extract
     - name: Test with pytest
       env:
         KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}

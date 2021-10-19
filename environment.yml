@@ -14,6 +14,7 @@ dependencies:
   - jupyterlab
   - jupytext
   - matplotlib
+  - gspread
   - pip
   - pip:
     - get-gecko-driver
