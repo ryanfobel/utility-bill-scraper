@@ -55,9 +55,13 @@ rcParams.update({"figure.figsize": (12, 6)})
 history_path = os.path.abspath(
     os.path.join("..", "data", "Kitchener Utilities", "data.csv")
 )
+
 statement_path = os.path.abspath(
     os.path.join("..", "data", "Kitchener Utilities", "statements")
 )
+
+history_path = "https://drive.google.com/drive/u/0/folders/13ai3ELMsIrhjFGcv2Lqbwzb4sGkEWK-Y"
+statement_path = "https://drive.google.com/drive/u/0/folders/1ANNdGtBWAR6oTalX_h9QxgPjRwlhHQCr"
 
 # +
 # Create a Kitchener Utilities API object with your user name and password
@@ -66,7 +70,9 @@ password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
 
 ku_api = ku.KitchenerUtilitiesAPI(username, password, history_path, statement_path)
 
-ku_api.update()
+updates = ku_api.update()
+if updates is not None:
+    print(f"{ len(updates) } statements_downloaded")
 ku_api.history().tail()
 
 # +
@@ -152,3 +158,6 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([kgCO2_per_cubic_meter * y / 1e3 for y in ylim])
 plt.title("Cumulative CO$_2$e emissions from natural gas per year");
+# -
+
+

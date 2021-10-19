@@ -19,20 +19,27 @@
 # This notebook demonstrates how to work with files in a shared Google Drive folder
 
 # %%
+# %load_ext autoreload
+# %autoreload 2
+
+import os
+import sys
 import time
 import datetime
 import random
+import tempfile
 
 import pandas as pd
-import gspread
-from apiclient import discovery
 
-# Authenticate with the service account
-gc = gspread.service_account()
-drive_service = discovery.build('drive', 'v3', credentials=gc.session.credentials)
+sys.path.insert(0, os.path.join("..", "src"))
+
+from utility_bill_scraper import GDriveHelper
+
+# %%
+gd = GDriveHelper()
 
 # List all spreadsheet files accessible by the service account.
-gc.list_spreadsheet_files()
+gd._gc.list_spreadsheet_files()
 
 # %% [markdown]
 # # Setup the Google Drive folder
@@ -41,68 +48,33 @@ gc.list_spreadsheet_files()
 # and share it with the email address stored in your credentials file (printed by the next cell).
 
 # %%
-gc.session.credentials.service_account_email
+gd._gc.session.credentials.service_account_email
 
 # %%
-import os
-import io
-from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
-
 # Set the folder ID here
 folder_id = '13ai3ELMsIrhjFGcv2Lqbwzb4sGkEWK-Y'
 
+history_path = f'https://drive.google.com/drive/u/0/folders/{ folder_id }'
+temp_download_dir = tempfile.mkdtemp()
 
-def get_file_in_folder(folder_id, file_name):
-    # Query the shared google folder for file that matches `file_name`
-    return drive_service.files().list(q=f"'{folder_id}' in parents and name='{file_name}'").execute()['files'][0]
-
-def get_file(file_id):
-    # Query google drive for a file matching the `file_id`
-    return drive_service.files().get(fileId=file_id).execute()
-
-def upload_file(file_id, local_path):
-    file = get_file(file_id)
-    media_body = MediaFileUpload(local_path, mimetype=file['mimeType'], resumable=True)
-    updated_file = drive_service.files().update(
-            fileId=file['id'],
-            media_body=media_body).execute()
-    return updated_file
-
-def download_file(file_id, local_path):
-    file = drive_service.files().get_media(fileId=file_id)
-    fh = io.BytesIO()
-    downloader = MediaIoBaseDownload(fh, file)
-    done = False
-    while done is False:
-        status, done = downloader.next_chunk()
-        print("Download %d%%." % int(status.progress() * 100))
-
-    # Make parent dirs if necessary.
-    os.makedirs(os.path.split(local_path)[0], exist_ok=True)
-
-    # Write the file.
-    with open(local_path, 'w') as f:
-        f.write(fh.getvalue().decode('utf-8'))
-
-
-# %%
-name = 'Kitchener Utilities'
+"""
 history_path = os.path.abspath(
     os.path.join(".", "data", name, "data.csv")
 )
+"""
 
-utility_folder = get_file_in_folder(folder_id, name)
-data_file = get_file_in_folder(utility_folder['id'], 'data.csv')
-download_file(data_file['id'], history_path)
-df = pd.read_csv(history_path)
+name = 'Kitchener Utilities'
+
+utility_folder = gd.get_file_in_folder(folder_id, name)
+data_file = gd.get_file_in_folder(utility_folder['id'], 'data.csv')
+gd.download_file(data_file['id'], os.path.join(temp_download_dir, 'data.csv'))
+df = pd.read_csv(os.path.join(temp_download_dir, 'data.csv'))
 df.head()
 
 # %%
-# Make some changes and save them locally at `history_path`.
+# Make some changes and save them locally at `{temp_download_dir}/data.csv`.
 
 # ...
 
 # Upload to google drive, replacing the original file.
-upload_file(data_file['id'], history_path)
-
-# %%
+gd.upload_file(data_file['id'], os.path.join(temp_download_dir, 'data.csv'))
