@@ -20,7 +20,7 @@
 #
 # ## Setup
 #
-# Fill in your `username` and `password` below, then run all of the cells in the notebook. Data is saved in the directory `../data`.
+# Fill in your `username` and `password` below, then run all of the cells in the notebook. After running the entire notebook, you'll be able to download your data as a `download.zip` file (containing both a summary `data.csv` and the `*.pdf` statements).
 
 # +
 username = ""
@@ -30,12 +30,11 @@ password = ""
 bin_width = 0.9
 alpha = 0.5
 
-# %load_ext autoreload
-# %autoreload 2
 # %matplotlib inline
 
 import datetime as dt
 import os
+import shutil
 import sys
 
 # Update the path to include the src directory
@@ -156,21 +155,6 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Cumulative CO$_2$e emissions from natural gas per year")
-
-import os
-
-# +
-from zipfile import ZipFile
-
-file_paths = []
-for root, directories, files in os.walk(data_path):
-    for filename in files:
-        filepath = os.path.join(root, filename)
-        file_paths.append(filepath)
-
-with ZipFile(os.path.join(data_path, "download.zip"), "w") as zip:
-    for file in file_paths:
-        zip.write(file)
 # -
 
 # ## Save data as `downloads.zip`
