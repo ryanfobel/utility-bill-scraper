@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 import tempfile
 
 from dotenv import load_dotenv
@@ -53,12 +53,16 @@ def test_get_header_nav_bar():
 
 
 def test_download_statements():
-    statements_path = tempfile.mkdtemp()
-    history_path = os.path.join(statements_path, "data.csv")
+    data_path = tempfile.mkdtemp()
 
     # Create a Kitchener Utilities API object with your user name and password
     user = os.getenv("KITCHENER_UTILITIES_USER")
     password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
-    ku_api = ku.KitchenerUtilitiesAPI(user, password, history_path, statements_path)
+    ku_api = ku.KitchenerUtilitiesAPI(user, password, data_path)
     pdf_files = ku_api.download_statements(max_downloads=1)
     assert len(pdf_files) > 0
+
+
+# Test google drive history and statement paths
+# history_path = "https://drive.google.com/drive/u/0/folders/13ai3ELMsIrhjFGcv2Lqbwzb4sGkEWK-Y"
+# statement_path = "https://drive.google.com/drive/u/0/folders/1ANNdGtBWAR6oTalX_h9QxgPjRwlhHQCr"

@@ -1,0 +1,19 @@
+name: environment
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - numpy
+  - pandas
+  - selenium
+  - arrow
+  - pdfminer
+  - beautifulsoup4
+  - matplotlib
+  - python-dotenv
+  - jupyterlab
+  - jupytext
+  - pip
+  - google-api-python-client
+  - geckodriver
+  - firefox

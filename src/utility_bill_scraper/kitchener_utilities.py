@@ -10,13 +10,12 @@ import time
 import arrow
 import numpy as np
 import pandas as pd
-from selenium import webdriver
 from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
 )
 
-from utility_bill_scraper import convert_divs_to_df, format_fields, process_pdf
+from utility_bill_scraper import Timeout, UtilityAPI, convert_divs_to_df, format_fields
 
 
 def get_name():
@@ -228,169 +227,30 @@ def get_gas_rates(soup):
     )
 
 
-def convert_data_to_df(data):
-    cols = list(data[0]["summary"].keys())
-    if "Pre-authorized Withdrawal" in cols:
-        cols.remove("Pre-authorized Withdrawal")
-        cols.append("Total Due")
-
-    for x in data:
-        if "Pre-authorized Withdrawal" in x["summary"].keys():
-            x["summary"]["Total Due"] = x["summary"]["Pre-authorized Withdrawal"]
-    data_sets = []
-    for col in cols:
-        data_sets.append([x["summary"][col] for x in data])
-
-    df = pd.DataFrame(data=dict(zip(cols, data_sets)))
-
-    df["Issue Date"] = [
-        str(arrow.get(x, "MMM DD YYYY").date()) for x in df["Issue Date"]
-    ]
-    df = df.set_index("Issue Date")
-
-    # Extract water and gas consumption.
-    water_consumption = [
-        np.sum(
-            [
-                x["Total Consumption"] if "Total Consumption" in x else 0
-                for x in row["water consumption"]
-            ]
-        )
-        for row in data
-    ]
-    gas_consumption = [
-        np.sum(
-            [
-                x["Total Consumption"] if "Total Consumption" in x else 0
-                for x in row["gas consumption"]
-            ]
-        )
-        for row in data
-    ]
-    """
-    # To do: gas charges were broken when updating to python3
-    
-    gas_fixed_charge = [x['gas charges']['Gas Fixed Delivery Charge']
-                        if 'Gas Fixed Delivery Charge'
-                        in x['gas charges'] else None for x in data]
-    # Figure out the sales tax rate.
-    sales_tax_on_gas = [x['gas charges']['HST on Gas']
-                        if 'HST on Gas'
-                        in x['gas charges'] else None for x in data]
-    sales_tax_rate = df['Gas Charges'] / (
-        df['Gas Charges'] - sales_tax_on_gas) - 1
-
-    # Adjust the fixed charge by the sales tax
-    df['Gas Fixed Charges'] = np.round(gas_fixed_charge * (
-        1 + sales_tax_rate), 2)
-
-    # Calculate the variable charge and rate.
-    df['Gas Variable Charges'] = df['Gas Charges'] - df['Gas Fixed Charges']
-    df['Gas Variable Rate'] = (df['Gas Variable Charges'] /
-                               df['Gas Consumption'])
-    """
-
-    df["Water Consumption"] = water_consumption
-    df["Gas Consumption"] = gas_consumption
-
-    return df
-
-
-class Timeout(Exception):
-    pass
-
-
-class UnsupportedFileTye(Exception):
-    pass
-
-
-class KitchenerUtilitiesAPI:
+class KitchenerUtilitiesAPI(UtilityAPI):
     name = get_name()
 
     def __init__(
         self,
         user=None,
         password=None,
-        history_path=None,
-        statement_path=None,
+        data_path=None,
+        file_ext=".csv",
         headless=True,
         timeout=10,
+        save_statements=True,
+        google_sa_credentials=None,
     ):
-        self._user = user
-        self._password = password
-        self._driver = None
-        self._browser = None
-        self._headless = headless
-        self._temp_download_dir = tempfile.mkdtemp()
-        self._history_path = history_path or os.path.abspath(
-            os.path.join(".", "data", self.name, "data.csv")
+        super().__init__(
+            user=user,
+            password=password,
+            data_path=data_path,
+            file_ext=file_ext,
+            headless=headless,
+            timeout=timeout,
+            save_statements=save_statements,
+            google_sa_credentials=google_sa_credentials,
         )
-
-        ext = os.path.splitext(self._history_path)[1]
-        supported_filetypes = [".csv"]
-        if ext not in supported_filetypes:
-            raise UnsupportedFileTye(
-                "`history_path` has an invalid filetype. Acceptable extensions are "
-                f'{",".join([f"`{x}`" for x in supported_filetypes])}'
-            )
-
-        if os.path.exists(self._history_path):
-            # Load csv with previously cached data if it exists
-            self._history = pd.read_csv(history_path).set_index("Issue Date")
-        else:
-            self._history = pd.DataFrame()
-
-        self._statement_path = statement_path or os.path.abspath(
-            os.path.join(".", "data", self.name, "statements")
-        )
-        self._timeout = timeout
-
-    def _init_driver(self, browser="Firefox"):
-        self._browser = browser
-        if self._browser == "Chrome":
-            options = webdriver.ChromeOptions()
-            prefs = {"download.default_directory": self._temp_download_dir}
-            options.add_experimental_option("prefs", prefs)
-            if self._headless:
-                options.add_argument("--window-size=1920,1080")
-                options.add_argument("--headless")
-                options.add_argument("--disable-gpu")
-                options.add_argument(
-                    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36"
-                )
-            self._driver = webdriver.Chrome(options=options)
-        elif self._browser == "Firefox":
-            options = webdriver.firefox.options.Options()
-            options.set_preference("browser.download.folderList", 2)
-            options.set_preference("browser.download.dir", self._temp_download_dir)
-            options.set_preference("browser.download.useDownloadDir", True)
-            options.set_preference(
-                "browser.download.viewableInternally.enabledTypes", ""
-            )
-            options.set_preference(
-                "browser.helperApps.neverAsk.saveToDisk",
-                "application/pdf;text/plain;application/text;text/xml;application/xml",
-            )
-            options.set_preference("pdfjs.disabled", True)
-            # disable the built-in PDF viewer
-            if self._headless:
-                options.add_argument("--headless")
-                options.add_argument("--window-size=1920,1080")
-                options.add_argument("--start-maximized")
-                options.add_argument("--disable-gpu")
-                options.add_argument("--no-sandbox")
-            self._driver = webdriver.Firefox(options=options)
-
-    def history(self):
-        return self._history
-
-    def __del__(self):
-        if self._driver:
-            self._close_driver()
-
-    def _close_driver(self):
-        self._driver.close()
-        self._driver = None
 
     def _login(self):
         self._driver.get(
@@ -468,11 +328,8 @@ class KitchenerUtilitiesAPI:
         return None
 
     def download_statements(self, start_date=None, end_date=None, max_downloads=None):
+        download_path = tempfile.mkdtemp()
         self._init_driver()
-
-        if not os.path.isdir(self._statement_path):
-            os.makedirs(self._statement_path)
-
         downloaded_files = []
 
         try:
@@ -516,7 +373,7 @@ class KitchenerUtilitiesAPI:
 
                     data.append(row_data)
                     new_filepath = os.path.join(
-                        self._statement_path,
+                        download_path,
                         "%s - %s - $%s.pdf"
                         % (date.isoformat(), self.name, row_data[3]),
                     )
@@ -594,55 +451,6 @@ class KitchenerUtilitiesAPI:
 
         return downloaded_files
 
-    def update(self, max_downloads=None):
-        # Download any new statements.
-        start_date = None
-        if len(self._history):
-            start_date = self._history.index[-1]
-        pdf_files = self.download_statements(
-            start_date=start_date, max_downloads=max_downloads
-        )
-        return self._scrape_pdf_files(pdf_files)
-
-    def _scrape_pdf_files(self, pdf_files=[]):
-        if len(pdf_files) == 0:
-            pdf_files = glob.glob(os.path.join(self._statement_path, "*.pdf"))
-
-        cached_invoice_dates = list(self._history.index)
-
-        # Scrape data from pdf files
-        data = []
-        for pdf_file in pdf_files:
-            date = os.path.splitext(os.path.basename(pdf_file))[0].split(" - ")[0]
-
-            # If we've already scraped this pdf, continue
-            if date not in cached_invoice_dates:
-                print("Scrape data from %s" % pdf_file)
-                try:
-                    result = process_pdf(pdf_file, rename=True)
-                    if result:
-                        data.append(result)
-                except Exception as e:
-                    print(e)
-
-        # Convert the list of dictionaries into a dictionary of data frames (one for
-        # each utility in the dataset).
-        if len(data):
-            df = convert_data_to_df(data)
-            self._history = self._history.append(df)
-
-            # If the parent directory of the history_path doesn't exist, create it.
-            history_parent = os.path.abspath(
-                os.path.join(self._history_path, os.path.pardir)
-            )
-            if not os.path.exists(history_parent):
-                os.makedirs(history_parent)
-
-            # Update csv file
-            self._history.to_csv(self._history_path)
-
-            return df
-
     def get_consumption_history(self, contract):
         self._init_driver()
 
@@ -702,3 +510,70 @@ class KitchenerUtilitiesAPI:
             return pd.Series(list(data.values()), index=dates)
 
         return convert_to_series(results)
+
+    def convert_data_to_df(self, data):
+        cols = list(data[0]["summary"].keys())
+        if "Pre-authorized Withdrawal" in cols:
+            cols.remove("Pre-authorized Withdrawal")
+            cols.append("Total Due")
+
+        for x in data:
+            if "Pre-authorized Withdrawal" in x["summary"].keys():
+                x["summary"]["Total Due"] = x["summary"]["Pre-authorized Withdrawal"]
+        data_sets = []
+        for col in cols:
+            data_sets.append([x["summary"][col] for x in data])
+
+        df = pd.DataFrame(data=dict(zip(cols, data_sets)))
+
+        df["Issue Date"] = [
+            str(arrow.get(x, "MMM DD YYYY").date()) for x in df["Issue Date"]
+        ]
+        df = df.set_index("Issue Date")
+
+        # Extract water and gas consumption.
+        water_consumption = [
+            np.sum(
+                [
+                    x["Total Consumption"] if "Total Consumption" in x else 0
+                    for x in row["water consumption"]
+                ]
+            )
+            for row in data
+        ]
+        gas_consumption = [
+            np.sum(
+                [
+                    x["Total Consumption"] if "Total Consumption" in x else 0
+                    for x in row["gas consumption"]
+                ]
+            )
+            for row in data
+        ]
+        """
+        # To do: gas charges were broken when updating to python3
+        
+        gas_fixed_charge = [x['gas charges']['Gas Fixed Delivery Charge']
+                            if 'Gas Fixed Delivery Charge'
+                            in x['gas charges'] else None for x in data]
+        # Figure out the sales tax rate.
+        sales_tax_on_gas = [x['gas charges']['HST on Gas']
+                            if 'HST on Gas'
+                            in x['gas charges'] else None for x in data]
+        sales_tax_rate = df['Gas Charges'] / (
+            df['Gas Charges'] - sales_tax_on_gas) - 1
+
+        # Adjust the fixed charge by the sales tax
+        df['Gas Fixed Charges'] = np.round(gas_fixed_charge * (
+            1 + sales_tax_rate), 2)
+
+        # Calculate the variable charge and rate.
+        df['Gas Variable Charges'] = df['Gas Charges'] - df['Gas Fixed Charges']
+        df['Gas Variable Rate'] = (df['Gas Variable Charges'] /
+                                df['Gas Consumption'])
+        """
+
+        df["Water Consumption"] = water_consumption
+        df["Gas Consumption"] = gas_consumption
+
+        return df
