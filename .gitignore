@@ -13,3 +13,4 @@ chromedriver.exe
 geckodriver.*
 .env*
 .coverage
+*.zip
