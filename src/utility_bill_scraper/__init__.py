@@ -446,9 +446,3 @@ class UtilityAPI:
                 self._history.to_csv(self._history_path)
 
             return df
-
-
-    from ._version import get_versions
-
-    __version__ = get_versions()["version"]
-    del get_versions
