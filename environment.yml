@@ -13,5 +13,6 @@ dependencies:
   - python-dotenv
   - jupyterlab
   - jupytext
+  - matplotlib
 pip:
   - get-gecko-driver
