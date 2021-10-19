@@ -4,8 +4,8 @@ import os
 import random
 import re
 import shutil
-import time
 import tempfile
+import time
 
 import arrow
 import numpy as np
@@ -15,7 +15,7 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
 )
 
-from utility_bill_scraper import UtilityAPI, Timeout, convert_divs_to_df, format_fields, process_pdf
+from utility_bill_scraper import Timeout, UtilityAPI, convert_divs_to_df, format_fields
 
 
 def get_name():
@@ -234,16 +234,22 @@ class KitchenerUtilitiesAPI(UtilityAPI):
         self,
         user=None,
         password=None,
-        history_path=None,
-        statement_path=None,
-        file_ext='.csv',
+        data_path=None,
+        file_ext=".csv",
         headless=True,
         timeout=10,
+        save_statements=True,
+        google_sa_credentials=None,
     ):
-        super().__init__(user=user, password=password, history_path=history_path,
-            statement_path=statement_path, file_ext=file_ext,
+        super().__init__(
+            user=user,
+            password=password,
+            data_path=data_path,
+            file_ext=file_ext,
             headless=headless,
-            timeout=timeout
+            timeout=timeout,
+            save_statements=save_statements,
+            google_sa_credentials=google_sa_credentials,
         )
 
     def _login(self):

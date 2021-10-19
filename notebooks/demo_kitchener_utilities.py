@@ -52,23 +52,22 @@ load_dotenv()
 
 rcParams.update({"figure.figsize": (12, 6)})
 
-history_path = os.path.abspath(
-    os.path.join("..", "data", "Kitchener Utilities", "data.csv")
+# Data path can be either a local folder, e.g.:
+#   data_path = os.path.abspath(os.path.join("..", "data"))
+# or it can be a url to a google drive folder.
+data_path = (
+    "https://drive.google.com/drive/u/0/folders/13ai3ELMsIrhjFGcv2Lqbwzb4sGkEWK-Y"
 )
-
-statement_path = os.path.abspath(
-    os.path.join("..", "data", "Kitchener Utilities", "statements")
-)
-
-history_path = "https://drive.google.com/drive/u/0/folders/13ai3ELMsIrhjFGcv2Lqbwzb4sGkEWK-Y"
-statement_path = "https://drive.google.com/drive/u/0/folders/1ANNdGtBWAR6oTalX_h9QxgPjRwlhHQCr"
 
 # +
 # Create a Kitchener Utilities API object with your user name and password
 username = os.getenv("KITCHENER_UTILITIES_USER")
 password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
+google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
 
-ku_api = ku.KitchenerUtilitiesAPI(username, password, history_path, statement_path)
+ku_api = ku.KitchenerUtilitiesAPI(
+    username, password, data_path, google_sa_credentials=google_sa_credentials
+)
 
 updates = ku_api.update()
 if updates is not None:
@@ -88,7 +87,7 @@ plt.figure()
 plt.bar(df_ku.index, df_ku["Water Consumption"], width=0.9)
 plt.xticks(rotation=90)
 plt.title("Water Consumption")
-plt.ylabel("m$^3$");
+plt.ylabel("m$^3$")
 
 # +
 # Natural gas emission factor
@@ -124,7 +123,7 @@ ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([kgCO2_per_cubic_meter * y / 1e3 for y in ylim])
-plt.title("Annual home CO$_2$e emissions from natural gas");
+plt.title("Annual home CO$_2$e emissions from natural gas")
 
 # +
 n_years_history = 1
@@ -157,7 +156,5 @@ ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([kgCO2_per_cubic_meter * y / 1e3 for y in ylim])
-plt.title("Cumulative CO$_2$e emissions from natural gas per year");
+plt.title("Cumulative CO$_2$e emissions from natural gas per year")
 # -
-
-

@@ -1,3 +1,2 @@
-xvfb
 libgtk-3-0
 libdbus-glib-1-2

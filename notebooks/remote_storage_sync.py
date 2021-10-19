@@ -22,24 +22,25 @@
 # %load_ext autoreload
 # %autoreload 2
 
+import json
 import os
 import sys
-import time
-import datetime
-import random
 import tempfile
 
 import pandas as pd
+from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.join("..", "src"))
 
 from utility_bill_scraper import GDriveHelper
 
 # %%
-gd = GDriveHelper()
+load_dotenv()
 
-# List all spreadsheet files accessible by the service account.
-gd._gc.list_spreadsheet_files()
+# Load the google service account credentials from an environment variable
+google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
+
+gdh = GDriveHelper(google_sa_credentials)
 
 # %% [markdown]
 # # Setup the Google Drive folder
@@ -48,27 +49,21 @@ gd._gc.list_spreadsheet_files()
 # and share it with the email address stored in your credentials file (printed by the next cell).
 
 # %%
-gd._gc.session.credentials.service_account_email
+json.loads(google_sa_credentials)["client_email"]
 
 # %%
 # Set the folder ID here
-folder_id = '13ai3ELMsIrhjFGcv2Lqbwzb4sGkEWK-Y'
+folder_id = "13ai3ELMsIrhjFGcv2Lqbwzb4sGkEWK-Y"
 
-history_path = f'https://drive.google.com/drive/u/0/folders/{ folder_id }'
+data_path = f"https://drive.google.com/drive/u/0/folders/{ folder_id }"
 temp_download_dir = tempfile.mkdtemp()
 
-"""
-history_path = os.path.abspath(
-    os.path.join(".", "data", name, "data.csv")
-)
-"""
+name = "Kitchener Utilities"
 
-name = 'Kitchener Utilities'
-
-utility_folder = gd.get_file_in_folder(folder_id, name)
-data_file = gd.get_file_in_folder(utility_folder['id'], 'data.csv')
-gd.download_file(data_file['id'], os.path.join(temp_download_dir, 'data.csv'))
-df = pd.read_csv(os.path.join(temp_download_dir, 'data.csv'))
+utility_folder = gdh.get_file_in_folder(folder_id, name)
+data_file = gdh.get_file_in_folder(utility_folder["id"], "data.csv")
+gdh.download_file(data_file["id"], os.path.join(temp_download_dir, "data.csv"))
+df = pd.read_csv(os.path.join(temp_download_dir, "data.csv"))
 df.head()
 
 # %%
@@ -77,4 +72,6 @@ df.head()
 # ...
 
 # Upload to google drive, replacing the original file.
-gd.upload_file(data_file['id'], os.path.join(temp_download_dir, 'data.csv'))
+gdh.upload_file(data_file["id"], os.path.join(temp_download_dir, "data.csv"))
+
+# %%

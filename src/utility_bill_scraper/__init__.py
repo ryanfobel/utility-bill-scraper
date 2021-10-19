@@ -1,19 +1,26 @@
+import datetime as dt
+import glob
+import io
+import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
-import io
-import glob
-import shutil
-import datetime as dt
 
 import arrow
-import pandas as pd
-from bs4 import BeautifulSoup
-from selenium import webdriver
 import gspread
+import pandas as pd
 from apiclient import discovery
-from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+from bs4 import BeautifulSoup
+from google.oauth2.service_account import Credentials
+from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
+from selenium import webdriver
+
+DEFAULT_SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",
+]
 
 
 def is_number(s):
@@ -64,7 +71,7 @@ def is_kitchener_utilities_bill(soup):
 
     def find_kitchener_utilities(tag):
         return (
-            tag.name == u"span"
+            tag.name == "span"
             and tag.decode().find("Supplier: KITCHENER UTILITIES") >= 0
         )
 
@@ -76,7 +83,7 @@ def is_kitchener_wilmot_hydro_bill(soup):
 
     def find_kitchener_wilmot_hydro(tag):
         return (
-            tag.name == u"span" and tag.decode().find("KITCHENER-WILMOT HYDRO INC") >= 0
+            tag.name == "span" and tag.decode().find("KITCHENER-WILMOT HYDRO INC") >= 0
         )
 
     return len(soup.find_all(find_kitchener_wilmot_hydro)) > 0
@@ -87,7 +94,7 @@ def is_enbridge_gas_bill(soup):
 
     def find_enbridge_gas(tag):
         return (
-            tag.name == u"span"
+            tag.name == "span"
             and tag.decode().find("Enbridge Gas Distribution Inc.") >= 0
         )
 
@@ -103,10 +110,22 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
     basename, ext = os.path.splitext(pdf_file)
     basepath = os.path.dirname(pdf_file)
     html_file = basename + ".html"
-    subprocess.check_output(
-        ["python", r"%CONDA_PREFIX%\Scripts\pdf2txt.py", "-o%s" % html_file, pdf_file],
-        shell=True,
-    )
+
+    if os.path.exists(os.path.join(os.getenv("CONDA_PREFIX"), "Scripts", "pdf2txt.py")):
+        subprocess.check_output(
+            [
+                "python",
+                r"%CONDA_PREFIX%\Scripts\pdf2txt.py",
+                "-o%s" % html_file,
+                pdf_file,
+            ],
+            shell=True,
+        )
+    else:
+        subprocess.check_output(
+            ["pdf2txt.py '-o%s' '%s'" % (html_file, pdf_file)],
+            shell=True,
+        )
 
     with open(html_file, "r", encoding="utf8") as f:
         soup = BeautifulSoup(f, "html.parser")
@@ -156,9 +175,9 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
         summary = en.get_summary(soup)
 
         new_name = "%s - %s - $%s.pdf" % (
-            arrow.get(summary[u"Bill Date"], "MMM DD, YYYY").format("YYYY-MM-DD"),
+            arrow.get(summary["Bill Date"], "MMM DD, YYYY").format("YYYY-MM-DD"),
             en.get_name(),
-            summary[u"Amount Due"],
+            summary["Amount Due"],
         )
 
         result = {"name": en.get_name(), "summary": summary}
@@ -214,7 +233,10 @@ def convert_data_to_df(data):
 
 
 def is_gdrive_path(path):
-    return path.startswith("https://drive.google.com/drive")
+    if path:
+        return path.startswith("https://drive.google.com/drive")
+    else:
+        return False
 
 
 class Timeout(Exception):
@@ -226,41 +248,66 @@ class UnsupportedFileTye(Exception):
 
 
 class GDriveHelper:
-    def __init__(self):
-        self._gc = gspread.service_account()
-        self._service = discovery.build('drive', 'v3', credentials=self._gc.session.credentials)
+    def __init__(self, service_account_info):
+        if type(service_account_info) == str:
+            service_account_info = json.loads(service_account_info)
+        self._credentials = Credentials.from_service_account_info(
+            info=service_account_info,
+            scopes=DEFAULT_SCOPES,
+        )
+        self._service = discovery.build("drive", "v3", credentials=self._credentials)
 
     def get_file_in_folder(self, folder_id, file_name):
         # Query the shared google folder for file that matches `file_name`
-        return self._service.files().list(q=f"'{folder_id}' in parents and name='{file_name}'").execute()['files'][0]
+        return (
+            self._service.files()
+            .list(q=f"'{folder_id}' in parents and name='{file_name}'")
+            .execute()["files"][0]
+        )
 
     def get_file(self, file_id):
         # Query google drive for a file matching the `file_id`
         return self._service.files().get(fileId=file_id).execute()
 
-    def create_file_in_folder(self, folder_id, local_path):
-        print(f"Upload file to google drive folder(folder_id={folder_id}, local_path={local_path}")
+    def create_subfolder(self, parent_folder_id, name):
         file_metadata = {
-            'name': os.path.basename(local_path),
-            'parents': [folder_id]
+            "name": name,
+            "mimeType": "application/vnd.google-apps.folder",
+            "parents": [parent_folder_id],
         }
-        media = MediaFileUpload(local_path, mimetype='text/csv', resumable=True)
-        file = self._service.files().create(body=file_metadata,
-            media_body=media,
-            fields='id').execute()
+        file = self._service.files().create(body=file_metadata, fields="id").execute()
+        return file
+
+    def create_file_in_folder(self, folder_id, local_path):
+        print(
+            f"Upload file to google drive folder(folder_id={folder_id}, local_path={local_path}"
+        )
+        file_metadata = {"name": os.path.basename(local_path), "parents": [folder_id]}
+        media = MediaFileUpload(local_path, mimetype="text/csv", resumable=True)
+        file = (
+            self._service.files()
+            .create(body=file_metadata, media_body=media, fields="id")
+            .execute()
+        )
         return file
 
     def upload_file(self, file_id, local_path):
         print(f"Upload file to google drive(file_id={file_id}, local_path={local_path}")
         file = self.get_file(file_id)
-        media_body = MediaFileUpload(local_path, mimetype=file['mimeType'], resumable=True)
-        updated_file = self._service.files().update(
-                fileId=file['id'],
-                media_body=media_body).execute()
+        media_body = MediaFileUpload(
+            local_path, mimetype=file["mimeType"], resumable=True
+        )
+        updated_file = (
+            self._service.files()
+            .update(fileId=file["id"], media_body=media_body)
+            .execute()
+        )
         return updated_file
 
     def download_file(self, file_id, local_path):
-        print(f"Download file from google drive(file_id={file_id}, local_path={local_path}")
+        print(
+            f"Download file from google drive(file_id={file_id}, local_path={local_path}"
+        )
         file = self._service.files().get_media(fileId=file_id)
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, file)
@@ -272,21 +319,21 @@ class GDriveHelper:
         os.makedirs(os.path.split(local_path)[0], exist_ok=True)
 
         # Write the file.
-        with open(local_path, 'wb') as f:
+        with open(local_path, "wb") as f:
             f.write(fh.getbuffer().tobytes())
 
 
 class UtilityAPI:
-
     def __init__(
         self,
         user=None,
         password=None,
-        history_path=None,
-        statement_path=None,
-        file_ext='.csv',
+        data_path=None,
+        file_ext=".csv",
         headless=True,
         timeout=10,
+        save_statements=True,
+        google_sa_credentials=None,
     ):
         self._user = user
         self._password = password
@@ -294,37 +341,50 @@ class UtilityAPI:
         self._browser = None
         self._headless = headless
         self._temp_download_dir = tempfile.mkdtemp()
-        self._history_path = history_path or os.path.abspath(
-            os.path.join(".", "data", self.name, "data" + file_ext)
-        )
+        self._data_path = data_path or os.path.abspath(os.path.join(".", "data"))
         self._file_ext = file_ext
-        self._gdh = None
+        self._save_statements = save_statements
+
+        if google_sa_credentials is not None:
+            self._gdh = GDriveHelper(google_sa_credentials)
+        else:
+            self._gdh = None
 
         supported_filetypes = [".csv"]
         if self._file_ext not in supported_filetypes:
             raise UnsupportedFileTye(
-                "`file_ext` has an invalid filetype. Acceptable extensions are "
+                f"`file_ext`={self._file_ext} has an invalid filetype. Acceptable extensions are "
                 f'{",".join([f"`{x}`" for x in supported_filetypes])}'
             )
 
-        # If `history_path` is a google drive folder, initialize a
-        # GDriveHelper object and download the data file.
-        if is_gdrive_path(self._history_path):
-            self._gdh = GDriveHelper()
-            folder_id = self._history_path.split('/')[-1]
-            utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
-            data_file = self._gdh.get_file_in_folder(utility_folder['id'], 'data' + self._file_ext)
-            self._gdh.download_file(data_file['id'], os.path.join(self._temp_download_dir,  'data' + self._file_ext))
-            self._history = pd.read_csv(os.path.join(self._temp_download_dir, 'data' + self._file_ext)).set_index("Issue Date")
-        elif os.path.exists(self._history_path):
-            # Load csv with previously cached data if it exists locally.
-            self._history = pd.read_csv(history_path).set_index("Issue Date")
-        else:
-            self._history = pd.DataFrame()
+        self._history = pd.DataFrame()
 
-        self._statement_path = statement_path or os.path.abspath(
-            os.path.join(".", "data", self.name, "statements")
-        )
+        # If `data_path` is a google drive folder download the data file.
+        if is_gdrive_path(self._data_path):
+            if google_sa_credentials is None:
+                raise RuntimeError(
+                    "`data_path` looks like a google drive folder, but `google_sa_credentials` is None."
+                )
+
+            folder_id = self._data_path.split("/")[-1]
+            utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
+            data_file = self._gdh.get_file_in_folder(
+                utility_folder["id"], "data" + self._file_ext
+            )
+            self._gdh.download_file(
+                data_file["id"],
+                os.path.join(self._temp_download_dir, "data" + self._file_ext),
+            )
+            self._history = pd.read_csv(
+                os.path.join(self._temp_download_dir, "data" + self._file_ext)
+            ).set_index("Issue Date")
+        elif os.path.exists(
+            os.path.join(self._data_path, self.name, "data" + self._file_ext)
+        ):
+            # Load csv with previously cached data if it exists locally.
+            self._history = pd.read_csv(
+                os.path.join(self._data_path, self.name, "data" + self._file_ext)
+            ).set_index("Issue Date")
 
         self._timeout = timeout
 
@@ -379,26 +439,58 @@ class UtilityAPI:
         # Download any new statements.
         start_date = None
         if len(self._history):
-            start_date = (arrow.get(self._history.index[-1]).date() + dt.timedelta(days=1)).isoformat()
+            start_date = (
+                arrow.get(self._history.index[-1]).date() + dt.timedelta(days=1)
+            ).isoformat()
         pdf_files = self.download_statements(
             start_date=start_date, max_downloads=max_downloads
         )
 
-        # If `statement_path` is a google drive url, upload pdfs to gdrive.
-        if is_gdrive_path(self._statement_path):
-            folder_id = self._statement_path.split('/')[-1]
-            for local_path in pdf_files:
-                if not self._gdh:
-                    self._gdh = GDriveHelper()
-                self._gdh.create_file_in_folder(folder_id, local_path)
-        else:
-            # If `statement_path` is a local path, copy pdfs to their new location.
-            os.makedirs(self._statement_path, exist_ok=True)
-            for local_path in pdf_files:
-                shutil.move(local_path, os.path.join(self._statement_path, os.path.basename(local_path)))
+        if self._save_statements:
+            # If `data_path` is a google drive url, upload pdfs to gdrive.
+            if is_gdrive_path(self._data_path):
+                folder_id = self._data_path.split("/")[-1]
+                try:
+                    utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
+                except IndexError:
+                    utility_folder = self._gdh.create_subfolder(folder_id, self.name)
+                try:
+                    statements_folder = self._gdh.get_file_in_folder(
+                        utility_folder["id"], "statements"
+                    )
+                except IndexError:
+                    statements_folder = self._gdh.create_subfolder(
+                        utility_folder["id"], "statements"
+                    )
+                for local_path in pdf_files:
+                    self._gdh.create_file_in_folder(statements_folder["id"], local_path)
+            else:
+                # If `data_path` is a local path, copy pdfs to their new location.
+                os.makedirs(
+                    os.path.join(self._data_path, self.name, "statements"),
+                    exist_ok=True,
+                )
+                for local_path in pdf_files:
+                    shutil.move(
+                        local_path,
+                        os.path.join(
+                            self._data_path,
+                            self.name,
+                            "statements",
+                            os.path.basename(local_path),
+                        ),
+                    )
 
-            # Update the `pdf_files` list
-            pdf_files = [os.path.join(self._statement_path, os.path.basename(local_path)) for file in pdf_files]
+                # Update the `pdf_files` list
+                pdf_files = [
+                    os.path.join(
+                        self._data_path,
+                        self.name,
+                        "statements",
+                        os.path.basename(local_path),
+                    )
+                    for local_path in pdf_files
+                ]
         return self._scrape_pdf_files(pdf_files)
 
     def _scrape_pdf_files(self, pdf_files=[]):
@@ -426,23 +518,39 @@ class UtilityAPI:
 
             # Update history
 
-            # If `history_path` is a google drive folder, initialize a
-            # GDriveHelper object and download the data file.
-            if is_gdrive_path(self._history_path):
-                folder_id = self._history_path.split('/')[-1]
-                utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
-                data_file = self._gdh.get_file_in_folder(utility_folder['id'], 'data' + self._file_ext)
-                self._history.to_csv(os.path.join(self._temp_download_dir, 'data' + self._file_ext))
-                self._gdh.upload_file(data_file['id'], os.path.join(self._temp_download_dir, 'data' + self._file_ext))
-            else:
-                # If the parent directory of the history_path doesn't exist, create it.
-                history_parent = os.path.abspath(
-                    os.path.join(self._history_path, os.path.pardir)
+            # If `data_path` is a google drive folder, upload the data file.
+            if is_gdrive_path(self._data_path):
+                folder_id = self._data_path.split("/")[-1]
+                try:
+                    utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
+                except IndexError:
+                    utility_folder = self._gdh.create_subfolder(folder_id, self.name)
+
+                self._history.to_csv(
+                    os.path.join(self._temp_download_dir, "data" + self._file_ext)
                 )
-                if not os.path.exists(history_parent):
-                    os.makedirs(history_parent)
+
+                try:
+                    data_file = self._gdh.get_file_in_folder(
+                        utility_folder["id"], "data" + self._file_ext
+                    )
+                    self._gdh.upload_file(
+                        data_file["id"],
+                        os.path.join(self._temp_download_dir, "data" + self._file_ext),
+                    )
+                except IndexError:
+                    data_file = self._gdh.create_file_in_folder(
+                        utility_folder["id"],
+                        os.path.join(self._temp_download_dir, "data" + self._file_ext),
+                    )
+
+            else:
+                # Create directories if necessary
+                os.makedirs(os.path.join(self._data_path, self.name), exist_ok=True)
 
                 # Update csv file
-                self._history.to_csv(self._history_path)
+                self._history.to_csv(
+                    os.path.join(self._data_path, self.name, "data" + self._file_ext)
+                )
 
             return df
