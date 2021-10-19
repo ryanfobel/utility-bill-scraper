@@ -15,5 +15,5 @@ dependencies:
   - jupytext
   - matplotlib
   - pip
-  pip:
+  - pip:
     - get-gecko-driver
