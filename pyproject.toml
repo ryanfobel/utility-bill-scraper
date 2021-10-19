@@ -2,6 +2,8 @@
 name = "utility-bill-scraper"
 version = "v0.2.2"
 description = "Utility bill scraper for extracting data from pdfs and websites."
+license = "BSD-3-Clause"
+readme = README.md
 authors = ["Ryan Fobel <ryan@fobel.net>"]
 
 [tool.poetry.dependencies]
