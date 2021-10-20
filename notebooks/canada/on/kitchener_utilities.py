@@ -14,9 +14,11 @@
 # ---
 
 # %% [markdown] tags=[]
+# [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
+#
 # # Introduction
 #
-# This notebook demonstrates scraping of data from the [Kitchener Utilities](https://www.kitchenerutilities.ca) website and gas & water bills (pdfs).
+# This notebook demonstrates how to download and scrape `*.pdf` statements from the [Kitchener Utilities](https://www.kitchenerutilities.ca) website. You can launch an interactive version of this page by clicking on the badge at the top of the page.
 #
 # ## Setup
 #
