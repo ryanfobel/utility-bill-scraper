@@ -17,7 +17,7 @@ def update(
     google_sa_credentials,
 ):
     if utility_name == "Kitchener Utilities":
-        import utility_bill_scraper.kitchener_utilities as ku
+        import utility_bill_scraper.canada.on.kitchener_utilities as ku
 
         api = ku.KitchenerUtilitiesAPI(
             user,
@@ -38,7 +38,7 @@ def update(
 
 def export(utility_name, data_path, output, google_sa_credentials):
     if utility_name == "Kitchener Utilities":
-        import utility_bill_scraper.kitchener_utilities as ku
+        import utility_bill_scraper.canada.on.kitchener_utilities as ku
 
         api = ku.KitchenerUtilitiesAPI(data_path=data_path)
     else:
