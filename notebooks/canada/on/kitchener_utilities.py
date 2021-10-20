@@ -62,9 +62,14 @@ if not password:
     password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
 
 # Set the path where data is saved.
-data_path = os.path.join("..", "..", "..", "data")
+data_path = os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data"))
 
-ku_api = ku.KitchenerUtilitiesAPI(username, password, data_path)
+# Get google service account credentials (if the environment variable is set).
+google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
+
+ku_api = ku.KitchenerUtilitiesAPI(
+    username, password, data_path, google_sa_credentials=google_sa_credentials
+)
 
 # Get up to 24 statements (the most recent).
 updates = ku_api.update(24)
