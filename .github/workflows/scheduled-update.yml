@@ -58,5 +58,5 @@ jobs:
         subject: ${{ env.DOWNLOADED }} new Kitchener Utilities statement(s)
         to: Ryan Fobel <ryan@fobel.net>
         from: Ryan Fobel <ryan@fobel.net>
-        body: ${{ env.DOWNLOADED }} new statements have been downloaded.
+        body: ${{ env.DOWNLOADED }} new statement(s) downloaded.
         attachments: notebooks/canada/on/kitchener_utilities.html
