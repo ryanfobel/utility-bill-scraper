@@ -4,7 +4,7 @@
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/utility-bill-scraper.svg)](https://pypi.python.org/pypi/utility-bill-scraper/)
 
-Download energy usage and carbon emissions data from utility websites or pdf bills.
+Download energy usage data and estimate CO2 emissions from utility websites or pdf bills.
 
 ## Supported utilities
 
