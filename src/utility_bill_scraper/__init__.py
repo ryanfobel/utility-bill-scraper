@@ -172,34 +172,6 @@ def pdf_to_html(pdf_file):
     """
 
 
-def convert_data_to_df(data):
-    """Convert the list of dictionaries (returned from `process_pdf`) into a
-    dictionary of pandas DataFrames keyed by utility name."""
-    result = {}
-
-    for x in data:
-        if x["name"] not in result.keys():
-            result[x["name"]] = pd.DataFrame()
-        if x["name"] == "Kitchener Utilities":
-            from . import kitchener_utilities as ku
-
-            df = ku.convert_data_to_df([x])
-        elif x["name"] == "Enbridge":
-            from . import enbridge as en
-
-            df = en.convert_data_to_df([x])
-        elif x["name"] == "Kitchener-Wilmot Hydro":
-            from . import kitchener_wilmot_hydro as kwh
-
-            df = kwh.convert_data_to_df([x])
-        else:
-            print("Unknown name.")
-            continue
-        result[x["name"]] = result[x["name"]].append(df)
-
-    return result
-
-
 def is_gdrive_path(path):
     if path:
         return path.startswith("https://drive.google.com/drive")
@@ -459,84 +431,66 @@ class UtilityAPI:
                     )
                     for local_path in pdf_files
                 ]
-        return self._scrape_pdf_files(pdf_files)
 
-    def _scrape_pdf_files(self, pdf_files=[]):
+        df_new_rows = pd.DataFrame()
+        for pdf in pdf_files:
+            df = self.scrape_pdf_file(pdf)
+            if df is not None:
+                df_new_rows = df_new_rows.append(df)
+        self._history = self._history.append(df_new_rows)
+
+        # Update history
+
+        # If `data_path` is a google drive folder, upload the data file.
+        if is_gdrive_path(self._data_path):
+            folder_id = self._data_path.split("/")[-1]
+            try:
+                utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
+            except IndexError:
+                utility_folder = self._gdh.create_subfolder(folder_id, self.name)
+
+            self._history.to_csv(
+                os.path.join(self._temp_download_dir, "data" + self._file_ext)
+            )
+
+            try:
+                data_file = self._gdh.get_file_in_folder(
+                    utility_folder["id"], "data" + self._file_ext
+                )
+                self._gdh.upload_file(
+                    data_file["id"],
+                    os.path.join(self._temp_download_dir, "data" + self._file_ext),
+                )
+            except IndexError:
+                data_file = self._gdh.create_file_in_folder(
+                    utility_folder["id"],
+                    os.path.join(self._temp_download_dir, "data" + self._file_ext),
+                )
+
+        else:
+            # Create directories if necessary
+            os.makedirs(os.path.join(self._data_path, self.name), exist_ok=True)
+
+            # Update csv file
+            self._history.to_csv(
+                os.path.join(self._data_path, self.name, "data" + self._file_ext)
+            )
+
+        return df_new_rows
+
+    def scrape_pdf_file(self, pdf_file):
         cached_invoice_dates = list(self._history.index)
 
-        # Scrape data from pdf files
-        data = []
-        for pdf_file in pdf_files:
-            date = os.path.splitext(os.path.basename(pdf_file))[0].split(" - ")[0]
+        # Scrape data from pdf file
+        date = os.path.splitext(os.path.basename(pdf_file))[0].split(" - ")[0]
 
-            # If we've already scraped this pdf, continue
-            if date not in cached_invoice_dates:
-                print("Scrape data from %s" % pdf_file)
-                try:
-                    result = self.extract_data(pdf_file)
-                    if result:
-                        if "Pre-authorized Withdrawal" in result["summary"].keys():
-                            amount_due = result["summary"]["Pre-authorized Withdrawal"]
-                        elif "Total Due" in result["summary"].keys():
-                            amount_due = result["summary"]["Total Due"]
-                        else:
-                            print("Couldn't find amount due!")
-                            amount_due = None
-
-                        new_name = "%s - %s - $%.2f.pdf" % (
-                            arrow.get(
-                                result["summary"]["Issue Date"], "MMM DD YYYY"
-                            ).format("YYYY-MM-DD"),
-                            self.name,
-                            amount_due,
-                        )
-                        os.rename(
-                            pdf_file, os.path.join(os.path.dirname(pdf_file), new_name)
-                        )
-                        data.append(result)
-                except Exception as e:
-                    print(e)
-
-        # Convert the to a dataframe
-        if len(data):
-            df = self.convert_data_to_df(data)
-            self._history = self._history.append(df)
-
-            # Update history
-
-            # If `data_path` is a google drive folder, upload the data file.
-            if is_gdrive_path(self._data_path):
-                folder_id = self._data_path.split("/")[-1]
-                try:
-                    utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
-                except IndexError:
-                    utility_folder = self._gdh.create_subfolder(folder_id, self.name)
-
-                self._history.to_csv(
-                    os.path.join(self._temp_download_dir, "data" + self._file_ext)
-                )
-
-                try:
-                    data_file = self._gdh.get_file_in_folder(
-                        utility_folder["id"], "data" + self._file_ext
-                    )
-                    self._gdh.upload_file(
-                        data_file["id"],
-                        os.path.join(self._temp_download_dir, "data" + self._file_ext),
-                    )
-                except IndexError:
-                    data_file = self._gdh.create_file_in_folder(
-                        utility_folder["id"],
-                        os.path.join(self._temp_download_dir, "data" + self._file_ext),
-                    )
-
-            else:
-                # Create directories if necessary
-                os.makedirs(os.path.join(self._data_path, self.name), exist_ok=True)
-
-                # Update csv file
-                self._history.to_csv(
-                    os.path.join(self._data_path, self.name, "data" + self._file_ext)
-                )
-
-            return df
+        # If we've already scraped this pdf, continue
+        if date not in cached_invoice_dates:
+            print("Scrape data from %s" % pdf_file)
+            try:
+                result, new_name = self.extract_data(pdf_file)
+                os.rename(pdf_file, os.path.join(os.path.dirname(pdf_file), new_name))
+                return self.convert_data_to_df([result])
+            except Exception as e:
+                print(e)
+        return None

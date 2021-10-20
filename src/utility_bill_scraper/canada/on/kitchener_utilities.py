@@ -535,7 +535,23 @@ class KitchenerUtilitiesAPI(UtilityAPI):
             # 'gas charges': self.get_gas_charges(soup),
             # 'gas rates': self.get_gas_rates(soup)
         }
-        return result
+
+        if "Pre-authorized Withdrawal" in result["summary"].keys():
+            amount_due = result["summary"]["Pre-authorized Withdrawal"]
+        elif "Total Due" in result["summary"].keys():
+            amount_due = result["summary"]["Total Due"]
+        else:
+            print("Couldn't find amount due!")
+            amount_due = None
+
+        new_name = "%s - %s - $%.2f.pdf" % (
+            arrow.get(result["summary"]["Issue Date"], "MMM DD YYYY").format(
+                "YYYY-MM-DD"
+            ),
+            self.name,
+            amount_due,
+        )
+        return result, new_name
 
     def convert_data_to_df(self, data):
         cols = list(data[0]["summary"].keys())
