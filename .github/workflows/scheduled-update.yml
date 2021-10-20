@@ -48,4 +48,5 @@ jobs:
         subject: utility bill scraper
         to: Ryan Fobel <ryan@fobel.net>
         from: Ryan Fobel <ryan@fobel.net>
-        html_body: file://kitchener_utilities.html
+        body: New statements downloaded.
+        attachments: kitchener_utilities.html
