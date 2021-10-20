@@ -4,6 +4,9 @@ on:
   schedule:
     # Run everyday at midnight
     - cron: "0 0 * * *"
+  push:
+    branches:
+      - '**'    
 
 jobs:
   update:
@@ -27,6 +30,14 @@ jobs:
     - name: Poetry install
       run: |
         poetry install
+    - name: Publish notebooks to html
+      env:
+        KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
+        KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
+        DATA_PATH: ${{ secrets.DATA_PATH }}
+        GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
+      run: |
+        poetry run jupyter nbconvert --execute --to html --output-dir . notebooks/canada/on/kitchener_utilities.ipynb
     - name: Send email
       uses: dawidd6/action-send-mail@v3.5.0
       with:
@@ -37,4 +48,4 @@ jobs:
         subject: utility bill scraper
         to: Ryan Fobel <ryan@fobel.net>
         from: Ryan Fobel <ryan@fobel.net>
-        body: "Test email from github actions"
+        html_body: file://kitchener_utilities.html
