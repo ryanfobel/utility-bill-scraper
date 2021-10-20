@@ -51,5 +51,5 @@ jobs:
         to: Ryan Fobel <ryan@fobel.net>
         from: Ryan Fobel <ryan@fobel.net>
         body: New statements downloaded.
-        html_body: notebooks/canada/on/kitchener_utilities.html
+        html_body: file://notebooks/canada/on/kitchener_utilities.html
         attachments: notebooks/canada/on/images/cumulative_co2_emissions.svg
