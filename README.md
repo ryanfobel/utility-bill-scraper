@@ -6,8 +6,7 @@
 
 Extract energy usage and carbon footprint from utility websites or pdf bills. Currently, this library supports:
 
- * [Kitchener Utilities (gas & water)](https://www.kitchenerutilities.ca)
- * [Kitchener-Wilmot Hydro (electricity)](https://www.kwhydro.on.ca)
+ * [Kitchener Utilities (gas & water)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/regionalize?urlpath=tree%2Fnotebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
 
 # Install
 

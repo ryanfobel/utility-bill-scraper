@@ -9,7 +9,7 @@ load_dotenv()
 # add src to the python path
 sys.path.insert(0, os.path.abspath("src"))
 
-import utility_bill_scraper.kitchener_utilities as ku
+import utility_bill_scraper.canada.on.kitchener_utilities as ku
 
 """
 def test_instantiate_api_class():

@@ -11,7 +11,6 @@ import tempfile
 import arrow
 import pandas as pd
 from apiclient import discovery
-from bs4 import BeautifulSoup
 from google.oauth2.service_account import Credentials
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from selenium import webdriver
@@ -118,14 +117,9 @@ def is_enbridge_gas_bill(soup):
     return len(soup.find_all(find_enbridge_gas)) > 0
 
 
-def process_pdf(pdf_file, rename=False, keep_html=False):
-    """Extract data from a pdf file and return a nested Python dictionary.
-    Optionally rename the pdf with the format:
-        YYYY-MM-DD-UTILITY_NAME-$XX.xx.pdf
-    If the `keep_html` flag is True, the intermediate html fill will be
-    maintained."""
+def pdf_to_html(pdf_file):
     basename, ext = os.path.splitext(pdf_file)
-    basepath = os.path.dirname(pdf_file)
+    os.path.dirname(pdf_file)
     html_file = basename + ".html"
 
     if os.path.exists(os.path.join(os.getenv("CONDA_PREFIX"), "Scripts", "pdf2txt.py")):
@@ -144,48 +138,9 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
             shell=True,
         )
 
-    with open(html_file, "r", encoding="utf8") as f:
-        soup = BeautifulSoup(f, "html.parser")
+    return html_file
 
-    if keep_html:
-        # re-write formatted html (useful for debugging)
-        with open(html_file, "w", encoding="utf8") as f:
-            f.write(str(soup.prettify().encode("utf-8")))
-    else:
-        os.remove(html_file)
-
-    result = None
-    new_name = None
-
-    if is_kitchener_utilities_bill(soup):
-        from . import kitchener_utilities as ku
-
-        summary = ku.get_summary(soup)
-
-        if "Pre-authorized Withdrawal" in summary.keys():
-            amount_due = summary["Pre-authorized Withdrawal"]
-        elif "Total Due" in summary.keys():
-            amount_due = summary["Total Due"]
-        else:
-            print("Couldn't find amount due!")
-            amount_due = None
-
-        new_name = "%s - %s - $%.2f.pdf" % (
-            arrow.get(summary["Issue Date"], "MMM DD YYYY").format("YYYY-MM-DD"),
-            ku.get_name(),
-            amount_due,
-        )
-
-        # To do: several functions were broken when updating to python3
-        result = {
-            "name": ku.get_name(),
-            "summary": summary,
-            "water consumption": ku.get_water_consumption(soup),
-            # 'water and sewer charges': ku.get_water_and_sewer_charges(soup),
-            "gas consumption": ku.get_gas_consumption(soup),
-            # 'gas charges': ku.get_gas_charges(soup),
-            # 'gas rates': ku.get_gas_rates(soup)
-        }
+    """
     elif is_enbridge_gas_bill(soup):
         from . import enbridge as en
 
@@ -214,11 +169,7 @@ def process_pdf(pdf_file, rename=False, keep_html=False):
         }
     else:
         print("Unrecognized bill type.")
-
-    if rename and new_name:
-        os.rename(pdf_file, os.path.join(basepath, new_name))
-
-    return result
+    """
 
 
 def convert_data_to_df(data):
@@ -522,8 +473,26 @@ class UtilityAPI:
             if date not in cached_invoice_dates:
                 print("Scrape data from %s" % pdf_file)
                 try:
-                    result = process_pdf(pdf_file, rename=True)
+                    result = self.extract_data(pdf_file)
                     if result:
+                        if "Pre-authorized Withdrawal" in result["summary"].keys():
+                            amount_due = result["summary"]["Pre-authorized Withdrawal"]
+                        elif "Total Due" in result["summary"].keys():
+                            amount_due = result["summary"]["Total Due"]
+                        else:
+                            print("Couldn't find amount due!")
+                            amount_due = None
+
+                        new_name = "%s - %s - $%.2f.pdf" % (
+                            arrow.get(
+                                result["summary"]["Issue Date"], "MMM DD YYYY"
+                            ).format("YYYY-MM-DD"),
+                            self.name,
+                            amount_due,
+                        )
+                        os.rename(
+                            pdf_file, os.path.join(os.path.dirname(pdf_file), new_name)
+                        )
                         data.append(result)
                 except Exception as e:
                     print(e)

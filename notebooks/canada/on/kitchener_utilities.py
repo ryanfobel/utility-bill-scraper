@@ -1,11 +1,11 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: py:light,ipynb
+#     formats: ipynb,py:percent
 #     text_representation:
 #       extension: .py
-#       format_name: light
-#       format_version: '1.5'
+#       format_name: percent
+#       format_version: '1.3'
 #       jupytext_version: 1.13.0
 #   kernelspec:
 #     display_name: Python 3
@@ -13,7 +13,7 @@
 #     name: python3
 # ---
 
-# + [markdown] tags=[]
+# %% [markdown] tags=[]
 # # Introduction
 #
 # This notebook demonstrates scraping of data from the [Kitchener Utilities](https://www.kitchenerutilities.ca) website and gas & water bills (pdfs).
@@ -22,7 +22,7 @@
 #
 # Fill in your `username` and `password` below, then run all of the cells in the notebook. After running the entire notebook, you'll be able to download your data as a `download.zip` file (containing both a summary `data.csv` and the `*.pdf` statements).
 
-# +
+# %%
 username = ""
 password = ""
 
@@ -38,14 +38,14 @@ import shutil
 import sys
 
 # Update the path to include the src directory
-sys.path.insert(0, os.path.join("..", "src"))
+sys.path.insert(0, os.path.abspath(os.path.join("..", "..", "..", "src")))
 
 import matplotlib.pyplot as plt
 import numpy as np
 from dotenv import load_dotenv
 from matplotlib import rcParams
 
-import utility_bill_scraper.kitchener_utilities as ku
+import utility_bill_scraper.canada.on.kitchener_utilities as ku
 
 # Load the `.env` file into the environment if it exists
 load_dotenv()
@@ -60,7 +60,7 @@ if not password:
     password = os.getenv("KITCHENER_UTILITIES_PASSWORD", password)
 
 # Set the path where data is saved.
-data_path = os.path.join("..", "data")
+data_path = os.path.join("..", "..", "..", "data")
 
 ku_api = ku.KitchenerUtilitiesAPI(username, password, data_path)
 
@@ -69,11 +69,11 @@ updates = ku_api.update(24)
 if updates is not None:
     print(f"{ len(updates) } statements_downloaded")
 ku_api.history().tail()
-# -
 
+# %% [markdown]
 # ## Monthly consumption history
 
-# +
+# %%
 df_ku = ku_api.history()
 
 plt.figure()
@@ -81,17 +81,22 @@ plt.bar(df_ku.index, df_ku["Gas Consumption"], width=bin_width, alpha=alpha)
 plt.xticks(rotation=90)
 plt.title("Monthly Gas Consumption")
 plt.ylabel("m$^3$")
+os.makedirs("images", exist_ok=True)
+plt.savefig(os.path.join("images", "monthly_gas_consumption.svg"), bbox_inches="tight")
 
 plt.figure()
 plt.bar(df_ku.index, df_ku["Water Consumption"], width=bin_width, alpha=alpha)
 plt.xticks(rotation=90)
 plt.title("Monthly Water Consumption")
 plt.ylabel("m$^3$")
-# -
+plt.savefig(
+    os.path.join("images", "monthly_water_consumption.svg"), bbox_inches="tight"
+)
 
+# %% [markdown]
 # ## Annual CO2 emissions
 
-# +
+# %%
 from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
 
 df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
@@ -107,11 +112,12 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Annual CO$_2$e emissions from natural gas")
-# -
+plt.savefig(os.path.join("images", "annual_co2_emissions.svg"), bbox_inches="tight")
 
+# %% [markdown]
 # # CO2 emissions vs previous year
 
-# +
+# %%
 n_years_history = 1
 
 plt.figure()
@@ -133,7 +139,8 @@ ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
-plt.title("Monthly home CO$_2$e emissions from natural gas")
+plt.title("Monthly CO$_2$e emissions from natural gas")
+plt.savefig(os.path.join("images", "monthly_co2_emissions.svg"), bbox_inches="tight")
 
 plt.figure()
 for year, df_year in df_ku.groupby("year"):
@@ -155,12 +162,14 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Cumulative CO$_2$e emissions from natural gas per year")
-# -
+plt.savefig(os.path.join("images", "cumulative_co2_emissions.svg"), bbox_inches="tight")
 
+# %% [markdown]
 # ## Save data as `downloads.zip`
 #
 # Generate a zip file with all of the data
 # `Right-click` on the file `downloads.zip` in the file browser on the left (it'll be in the notebooks folder).
 #
 
+# %%
 shutil.make_archive(os.path.join(".", "download"), "zip", data_path)
