@@ -42,7 +42,7 @@ jobs:
         cat DOWNLOADED
         cat DOWNLOADED > $GITHUB_ENV
     - name: Publish notebooks to html
-      if: env.DOWNLOADED > 0
+      if: ${{ env.DOWNLOADED > 0 }}
       env:
         KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
         KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
@@ -51,7 +51,7 @@ jobs:
       run: |
         poetry run jupyter nbconvert --execute --to html notebooks/canada/on/kitchener_utilities.ipynb
     - name: Send email
-      if: env.DOWNLOADED > 0
+      if: ${{ env.DOWNLOADED > 0 }}
       uses: dawidd6/action-send-mail@v3.5.0
       with:
         server_address: smtp.gmail.com
