@@ -30,6 +30,8 @@ jobs:
     - name: Poetry install
       run: |
         poetry install
+    - name: Install pandoc
+      run: sudo apt-get install pandoc texlive-xetex texlive-fonts-recommended texlive-plain-generic        
     - name: Publish notebooks to html
       env:
         KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
@@ -37,7 +39,7 @@ jobs:
         DATA_PATH: ${{ secrets.DATA_PATH }}
         GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
       run: |
-        poetry run jupyter nbconvert --execute --to html --output-dir . notebooks/canada/on/kitchener_utilities.ipynb
+        poetry run jupyter nbconvert --execute --to pdf --output-dir . notebooks/canada/on/kitchener_utilities.ipynb
     - name: Send email
       uses: dawidd6/action-send-mail@v3.5.0
       with:
@@ -49,4 +51,4 @@ jobs:
         to: Ryan Fobel <ryan@fobel.net>
         from: Ryan Fobel <ryan@fobel.net>
         body: New statements downloaded.
-        attachments: kitchener_utilities.html
+        attachments: kitchener_utilities.pdf
