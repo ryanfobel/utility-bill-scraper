@@ -38,7 +38,9 @@ jobs:
         GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
       run: |
         poetry run python -m utility_bill_scraper.bin.ubs --utility-name "Kitchener Utilities" update > ubs.log
-        echo "DOWNLOADED="`cat ubs.log | grep Downloaded | sed 's/^Downloaded \(.*\) new statements$/\1/'` > $GITHUB_ENV
+        echo "DOWNLOADED="`cat ubs.log | grep Downloaded | sed 's/^Downloaded \(.*\) new statements$/\1/'` > DOWNLOADED
+        cat DOWNLOADED
+        cat DOWNLOADED > $GITHUB_ENV
     - name: Publish notebooks to html
       if: env.DOWNLOADED > 0
       env:
