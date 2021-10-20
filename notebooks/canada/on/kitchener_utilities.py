@@ -62,7 +62,7 @@ if not password:
 # Set the path where data is saved.
 data_path = os.path.join("..", "..", "..", "data")
 
-ku_api = ku.KitchenerUtilitiesAPI(username, password, data_path, headless=False)
+ku_api = ku.KitchenerUtilitiesAPI(username, password, data_path)
 
 # Get up to 24 statements (the most recent).
 updates = ku_api.update(24)
