@@ -16,10 +16,10 @@ pdfminer = "^20191125"
 beautifulsoup4 = "^4.10.0"
 matplotlib = "^3.4.3"
 google-api-python-client = "^2.27.0"
+python-dotenv = "^0.19.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
-python-dotenv = "^0.19.1"
 jupyterlab = "^3.1.18"
 jupytext = "^1.13.0"
 flake8 = "^4.0.1"

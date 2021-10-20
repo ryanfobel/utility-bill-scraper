@@ -7,17 +7,17 @@
 
 Download energy usage and carbon emissions data from utility websites or pdf bills.
 
-## Install
-
-```sh
-pip install utility-bill-scraper
-```
-
 ## Supported utilities
 
 The simplest way to get started without installing anything on your computer is to click on one of the following links, which will open a session on https://mybinder.org where you can try downloading some data.
 
  * [Kitchener Utilities (gas & water)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
+ 
+## Install
+
+```sh
+pip install utility-bill-scraper
+```
 <!-- #endregion -->
 
 <!-- #region -->
@@ -92,9 +92,65 @@ plt.title("Monthly CO$_2$e emissions from natural gas")
 ![monthly_co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_co2_emissions.svg)
 <!-- #endregion -->
 
+<!-- #region -->
+## Command line utilities
+
+Update and export your utility data from the command line.
+
+### Update data
+
+```sh
+> python -m utility_bill_scraper.bin.ubs --utilty-name "Kitchener Utilities" update --user $USER --password $PASSWORD
+```
+
+### Export data
+
+```sh
+> python -m utility_bill_scraper.bin.ubs --utilty-name "Kitchener Utilities" export --output data.csv
+```
+
+### Options
+
+```sh
+> python -m utility_bill_scraper.bin.ubs --help
+usage: ubs.py [-h] [-e ENV] [--data-path DATA_PATH] [--utility-name UTILITY_NAME]
+              [--google-sa-credentials GOOGLE_SA_CREDENTIALS]
+              {update,export} ...
+
+ubs (Utility bill scraper)
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -e ENV, --env ENV     path to .env file.
+  --data-path DATA_PATH
+                        folder containing the history file
+  --utility-name UTILITY_NAME
+                        name of the utility
+  --google-sa-credentials GOOGLE_SA_CREDENTIALS
+                        google service account credentials
+
+subcommands:
+  {update,export}       available sub-commands
+```
+
+### Environment variables
+
+Note that many options can be set via environment variables (useful for continuous integration and/or working with containers). The following can be set in your shell or via a `.env` file passed using the `-e` option.
+
+```sh
+DATA_PATH
+UTILITY_NAME
+GOOGLE_SA_CREDENTIALS
+USER
+PASSWORD
+SAVE_STATEMENTS
+MAX_DOWNLOADS
+```
+
 ## Contributors
 
 * [Ryan Fobel](https://github.com/ryanfobel)
+<!-- #endregion -->
 
 ```python
 
