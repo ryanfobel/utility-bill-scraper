@@ -81,12 +81,17 @@ plt.bar(df_ku.index, df_ku["Gas Consumption"], width=bin_width, alpha=alpha)
 plt.xticks(rotation=90)
 plt.title("Monthly Gas Consumption")
 plt.ylabel("m$^3$")
+os.makedirs("images", exist_ok=True)
+plt.savefig(os.path.join("images", "monthly_gas_consumption.svg"), bbox_inches="tight")
 
 plt.figure()
 plt.bar(df_ku.index, df_ku["Water Consumption"], width=bin_width, alpha=alpha)
 plt.xticks(rotation=90)
 plt.title("Monthly Water Consumption")
 plt.ylabel("m$^3$")
+plt.savefig(
+    os.path.join("images", "monthly_water_consumption.svg"), bbox_inches="tight"
+)
 
 # %% [markdown]
 # ## Annual CO2 emissions
@@ -107,6 +112,7 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Annual CO$_2$e emissions from natural gas")
+plt.savefig(os.path.join("images", "annual_co2_emissions.svg"), bbox_inches="tight")
 
 # %% [markdown]
 # # CO2 emissions vs previous year
@@ -133,7 +139,8 @@ ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
-plt.title("Monthly home CO$_2$e emissions from natural gas")
+plt.title("Monthly CO$_2$e emissions from natural gas")
+plt.savefig(os.path.join("images", "monthly_co2_emissions.svg"), bbox_inches="tight")
 
 plt.figure()
 for year, df_year in df_ku.groupby("year"):
@@ -155,6 +162,7 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Cumulative CO$_2$e emissions from natural gas per year")
+plt.savefig(os.path.join("images", "cumulative_co2_emissions.svg"), bbox_inches="tight")
 
 # %% [markdown]
 # ## Save data as `downloads.zip`
@@ -165,5 +173,3 @@ plt.title("Cumulative CO$_2$e emissions from natural gas per year")
 
 # %%
 shutil.make_archive(os.path.join(".", "download"), "zip", data_path)
-
-# %%
