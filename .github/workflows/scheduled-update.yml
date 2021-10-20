@@ -30,8 +30,6 @@ jobs:
     - name: Poetry install
       run: |
         poetry install
-    - name: Install pandoc
-      run: sudo apt-get install pandoc texlive-xetex texlive-fonts-recommended texlive-plain-generic        
     - name: Publish notebooks to html
       env:
         KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
