@@ -29,7 +29,7 @@ jobs:
       run: |
         poetry install
     - name: Generate README.md
-      run: jupyter nbconvert README.ipynb --no-input --to markdown
+      run: poetry jupyter nbconvert README.ipynb --no-input --to markdown
     - name: Update TOC
       uses: technote-space/toc-generator@v4
     - name: Lint with flake8
