@@ -6,19 +6,56 @@
 
 Download energy usage data and estimate CO2 emissions from utility websites or pdf bills.
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+## Table of contents
+
+- [Supported utilities](#supported-utilities)
+- [Installation](#installation)
+- [Data storage](#data-storage)
+- [Getting and plotting data using the Python API](#getting-and-plotting-data-using-the-python-api)
+    - [Update data](#update-data)
+    - [Plot monthly gas consumption](#plot-monthly-gas-consumption)
+    - [Convert gas consumption to CO2 emissions](#convert-gas-consumption-to-co2-emissions)
+    - [Plot CO2 emissions versus previous years](#plot-co2-emissions-versus-previous-years)
+- [Command line utilities](#command-line-utilities)
+    - [Update data](#update-data-1)
+    - [Export data](#export-data)
+    - [Options](#options)
+    - [Environment variables](#environment-variables)
+- [Contributors](#contributors)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ## Supported utilities
 
 The simplest way to get started without installing anything on your computer is to click on one of the following links, which will open a session on https://mybinder.org where you can try downloading some data.
 
  * [Kitchener Utilities (gas & water)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
  
-## Install
+## Installation
 
 ```sh
 pip install utility-bill-scraper
 ```
 
-## Get updates
+## Data storage
+
+All data is stored in a `*.csv` file located at `$DATA_PATH/$UTILITY_NAME/data.csv` .The `DATA_PATH` can be set as input argument when creating an API object via the `data_path` argument, or via the `--data-path` command line switch or `DATA_PATH` environment variable when using the [command line lnterface](#command-line-utilities).
+
+```
+└───data
+    └───Kitchener Utilities
+        └───data.csv
+        └───statements
+            │───2021-10-18 - Kitchener Utilities - $102.30.pdf
+            ...
+            └───2021-06-15 - Kitchener Utilities - $84.51.pdf
+```
+
+## Getting and plotting data using the Python API
+
+### Update data
 
 ```python
 import utility_bill_scraper.canada.on.kitchener_utilities as ku
@@ -36,7 +73,7 @@ ku_api.history().tail()
 
 
 
-## Plot monthly gas consumption
+### Plot monthly gas consumption
 
 ```python
 import matplotlib.pyplot as plt
@@ -52,7 +89,7 @@ plt.ylabel("m$^3$")
 
 ![monthly gas consumption](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_gas_consumption.svg)
 
-## Convert gas consumption to CO2 emissions
+### Convert gas consumption to CO2 emissions
 
 ```python
 from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
@@ -60,7 +97,7 @@ from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
 df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
 ```
 
-## Plot CO2 emissions versus previous years
+### Plot CO2 emissions versus previous years
 
 ```python
 import datetime as dt
