@@ -7,31 +7,31 @@
 Download energy usage data and estimate CO2 emissions from utility websites or pdf bills.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 <!-- param::title::## Table of contents:: -->
 <!-- param::mode::github.com:: -->
+
 ## Table of contents
 
 - [Supported utilities](#supported-utilities)
 - [Install](#install)
 - [Data storage](#data-storage)
 - [Getting and plotting data using the Python API](#getting-and-plotting-data-using-the-python-api)
-  - [Update data](#update-data)
-  - [Plot monthly gas consumption](#plot-monthly-gas-consumption)
-  - [Convert gas consumption to CO2 emissions](#convert-gas-consumption-to-co2-emissions)
-  - [Plot CO2 emissions versus previous years](#plot-co2-emissions-versus-previous-years)
+    - [Update data](#update-data)
+    - [Plot monthly gas consumption](#plot-monthly-gas-consumption)
+    - [Convert gas consumption to CO2 emissions](#convert-gas-consumption-to-co2-emissions)
+    - [Plot CO2 emissions versus previous years](#plot-co2-emissions-versus-previous-years)
 - [Command line utilities](#command-line-utilities)
-  - [Update data](#update-data-1)
-  - [Export data](#export-data)
-  - [Options](#options)
-  - [Environment variables](#environment-variables)
+    - [Update data](#update-data-1)
+    - [Export data](#export-data)
+    - [Options](#options)
+    - [Environment variables](#environment-variables)
 - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Supported utilities
 
-The simplest way to get started without installing anything on your computer is to click on one of the following links, which will open a session on https://mybinder.org where you can try downloading some data.
+The simplest way to get started without installing anything on your computer is to click on one of the following links, which will open a session on https://mybinder.org where you can try downloading some data. **Note: after you click on the link, it will take a couple of minutes to load an interactive Jupyter notebook.** Then follow the instructions (e.g., provide your `username` and `password`), then run the notebook directly from your browser.
 
  * [Kitchener Utilities (gas & water)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
  
