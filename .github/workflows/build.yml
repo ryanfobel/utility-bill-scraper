@@ -51,6 +51,14 @@ jobs:
         KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
       run: |
         poetry run pytest --cov
+    - name: Publish notebooks to html
+      env:
+        KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
+        KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
+        DATA_PATH: ${{ secrets.DATA_PATH }}
+        GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
+      run: |
+        poetry run jupyter nbconvert --to html --ouput-dir . --execute notebooks\canada\on\kitchener_utilities.ipynb
     - name: Publish to PyPi
       if: startsWith(github.ref, 'refs/tags/v')
       env:
