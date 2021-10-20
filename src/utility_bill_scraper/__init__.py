@@ -119,10 +119,12 @@ def is_enbridge_gas_bill(soup):
 
 def pdf_to_html(pdf_file):
     basename, ext = os.path.splitext(pdf_file)
-    os.path.dirname(pdf_file)
     html_file = basename + ".html"
 
-    if os.path.exists(os.path.join(os.getenv("CONDA_PREFIX"), "Scripts", "pdf2txt.py")):
+    # If we're in a conda environment, use the conda packaged pdf2txt.py
+    if os.getenv("CONDA_PREFIX") and os.path.exists(
+        os.path.join(os.getenv("CONDA_PREFIX"), "Scripts", "pdf2txt.py")
+    ):
         subprocess.check_output(
             [
                 "python",
@@ -132,7 +134,7 @@ def pdf_to_html(pdf_file):
             ],
             shell=True,
         )
-    else:
+    else:  # Otherwise use the pip version
         subprocess.check_output(
             ["pdf2txt.py '-o%s' '%s'" % (html_file, pdf_file)],
             shell=True,

@@ -97,7 +97,7 @@ def main():
         parser.print_help()
         sys.exit(2)
 
-    if is_gdrive_path(data_path) and google_sa_credentials:
+    if is_gdrive_path(data_path) and google_sa_credentials is None:
         missing_required_arg("google-sa-credentials")
 
     if utility_name is None:
