@@ -172,11 +172,14 @@ plt.title("Cumulative CO$_2$e emissions from natural gas per year")
 plt.savefig(os.path.join("images", "cumulative_co2_emissions.svg"), bbox_inches="tight")
 
 # %% [markdown]
-# ## Save data as `downloads.zip`
+# ## Save data as `downloads.zip` or print link to gdrive folder
 #
-# Generate a zip file with all of the data
-# `Right-click` on the file `downloads.zip` in the file browser on the left (it'll be in the notebooks folder).
-#
+# Generate a zip file with all of the data. `Right-click` on the file `downloads.zip` in the file browser on the left (it'll be in the `notebooks` folder). If `DATA_PATH` is a google drive link, print the url.
 
 # %%
-shutil.make_archive(os.path.join(".", "download"), "zip", data_path)
+from utility_bill_scraper import is_gdrive_path
+
+if is_gdrive_path(data_path):
+    print(data_path)
+else:
+    print(shutil.make_archive(os.path.join(".", "download"), "zip", data_path))
