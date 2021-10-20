@@ -38,7 +38,12 @@ jobs:
     #    GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
     #  run: |
     #    poetry run jupyter nbconvert --execute --to html notebooks/canada/on/kitchener_utilities.ipynb
-    - name: Update
+    - name: Update Kitchener Utilities
+      env:
+        KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
+        KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
+        DATA_PATH: ${{ secrets.DATA_PATH }}
+        GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
       run: |
         poetry run python -m utility_bill_scraper.bin.ubs --utility-name "Kitchener Utilities" update > ubs.log
         echo "DOWNLOADED="`cat ubs.log | grep Downloaded | sed 's/^Downloaded \(.*\) new statements$/\1/'` > $GITHUB_ENV
