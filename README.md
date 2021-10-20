@@ -1,4 +1,3 @@
-<!-- #region tags=[] -->
 # Utility bill scraper
 
 [![build](https://github.com/ryanfobel/utility-bill-scraper/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/ryanfobel/utility-bill-scraper/actions/workflows/build.yml)
@@ -18,15 +17,13 @@ The simplest way to get started without installing anything on your computer is 
 ```sh
 pip install utility-bill-scraper
 ```
-<!-- #endregion -->
 
-<!-- #region -->
 ## Get updates
 
 ```python
 import utility_bill_scraper.canada.on.kitchener_utilities as ku
 
-ku_api = ku.KitchenerUtilitiesAPI(username, password)
+ku_api = ku.KitchenerUtilitiesAPI(username='username', password='password')
 
 # Get new statements.
 updates = ku_api.update()
@@ -35,24 +32,26 @@ if updates is not None:
 ku_api.history().tail()
 ```
 ![history tail](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/history_tail.png)
-<!-- #endregion -->
 
-<!-- #region -->
+
+
+
 ## Plot monthly gas consumption
 
 ```python
+import matplotlib.pyplot as plt
+
 df_ku = ku_api.history()
 
 plt.figure()
-plt.bar(df_ku.index, df_ku["Gas Consumption"], width=bin_width, alpha=alpha)
+plt.bar(df_ku.index, df_ku["Gas Consumption"], width=0.9, alpha=0.5)
 plt.xticks(rotation=90)
 plt.title("Monthly Gas Consumption")
 plt.ylabel("m$^3$")
 ```
-![monthly gas consumption](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_gas_consumption.svg)
-<!-- #endregion -->
 
-<!-- #region -->
+![monthly gas consumption](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_gas_consumption.svg)
+
 ## Convert gas consumption to CO2 emissions
 
 ```python
@@ -60,12 +59,16 @@ from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
 
 df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
 ```
-<!-- #endregion -->
 
-<!-- #region -->
 ## Plot CO2 emissions versus previous years
 
 ```python
+import datetime as dt
+
+df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
+df_ku["year"] = [int(x[0:4]) for x in df_ku.index]
+df_ku["month"] = [int(x[5:7]) for x in df_ku.index]
+
 n_years_history = 1
 
 plt.figure()
@@ -76,8 +79,8 @@ for year, df_year in df_ku.groupby("year"):
             df_year["month"],
             df_year["Gas Consumption"],
             label=year,
-            width=bin_width,
-            alpha=alpha,
+            width=0.9,
+            alpha=0.5,
         )
 plt.legend()
 plt.ylabel("m$^3$")
@@ -90,9 +93,7 @@ plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Monthly CO$_2$e emissions from natural gas")
 ```
 ![monthly_co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_co2_emissions.svg)
-<!-- #endregion -->
 
-<!-- #region -->
 ## Command line utilities
 
 Update and export your utility data from the command line.
@@ -150,8 +151,3 @@ MAX_DOWNLOADS
 ## Contributors
 
 * [Ryan Fobel](https://github.com/ryanfobel)
-<!-- #endregion -->
-
-```python
-
-```
