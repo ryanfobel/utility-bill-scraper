@@ -28,6 +28,10 @@ jobs:
     - name: Poetry install
       run: |
         poetry install
+    - name: Generate README.md
+      run: poetry run jupyter nbconvert README.ipynb --no-input --to markdown
+    - name: Update TOC
+      uses: technote-space/toc-generator@v4
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names

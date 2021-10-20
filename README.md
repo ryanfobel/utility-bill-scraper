@@ -8,21 +8,23 @@ Download energy usage data and estimate CO2 emissions from utility websites or p
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+<!-- param::title::## Table of contents:: -->
+<!-- param::mode::github.com:: -->
 ## Table of contents
 
 - [Supported utilities](#supported-utilities)
 - [Install](#install)
 - [Data storage](#data-storage)
 - [Getting and plotting data using the Python API](#getting-and-plotting-data-using-the-python-api)
-    - [Update data](#update-data)
-    - [Plot monthly gas consumption](#plot-monthly-gas-consumption)
-    - [Convert gas consumption to CO2 emissions](#convert-gas-consumption-to-co2-emissions)
-    - [Plot CO2 emissions versus previous years](#plot-co2-emissions-versus-previous-years)
+  - [Update data](#update-data)
+  - [Plot monthly gas consumption](#plot-monthly-gas-consumption)
+  - [Convert gas consumption to CO2 emissions](#convert-gas-consumption-to-co2-emissions)
+  - [Plot CO2 emissions versus previous years](#plot-co2-emissions-versus-previous-years)
 - [Command line utilities](#command-line-utilities)
-    - [Update data](#update-data-1)
-    - [Export data](#export-data)
-    - [Options](#options)
-    - [Environment variables](#environment-variables)
+  - [Update data](#update-data-1)
+  - [Export data](#export-data)
+  - [Options](#options)
+  - [Environment variables](#environment-variables)
 - [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
