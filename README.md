@@ -11,7 +11,7 @@ Download energy usage data and estimate CO2 emissions from utility websites or p
 ## Table of contents
 
 - [Supported utilities](#supported-utilities)
-- [Installation](#installation)
+- [Install](#install)
 - [Data storage](#data-storage)
 - [Getting and plotting data using the Python API](#getting-and-plotting-data-using-the-python-api)
     - [Update data](#update-data)
@@ -33,7 +33,7 @@ The simplest way to get started without installing anything on your computer is 
 
  * [Kitchener Utilities (gas & water)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
  
-## Installation
+## Install
 
 ```sh
 pip install utility-bill-scraper
@@ -187,4 +187,4 @@ MAX_DOWNLOADS
 
 ## Contributors
 
-* [Ryan Fobel](https://github.com/ryanfobel)
+* Ryan Fobel ([@ryanfobel](https://github.com/ryanfobel)
