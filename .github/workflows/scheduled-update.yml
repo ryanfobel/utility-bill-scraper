@@ -30,14 +30,6 @@ jobs:
     - name: Poetry install
       run: |
         poetry install
-    #- name: Publish notebooks to html
-    #  env:
-    #    KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
-    #    KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
-    #    DATA_PATH: ${{ secrets.DATA_PATH }}
-    #    GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
-    #  run: |
-    #    poetry run jupyter nbconvert --execute --to html notebooks/canada/on/kitchener_utilities.ipynb
     - name: Update Kitchener Utilities
       env:
         USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
@@ -47,9 +39,18 @@ jobs:
       run: |
         poetry run python -m utility_bill_scraper.bin.ubs --utility-name "Kitchener Utilities" update > ubs.log
         echo "DOWNLOADED="`cat ubs.log | grep Downloaded | sed 's/^Downloaded \(.*\) new statements$/\1/'` > $GITHUB_ENV
-    - name: Send email
-      uses: dawidd6/action-send-mail@v3.5.0
+    - name: Publish notebooks to html
       if: env.DOWNLOADED > 0
+      env:
+        KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
+        KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
+        DATA_PATH: ${{ secrets.DATA_PATH }}
+        GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
+      run: |
+        poetry run jupyter nbconvert --execute --to html notebooks/canada/on/kitchener_utilities.ipynb
+    - name: Send email
+      if: env.DOWNLOADED > 0
+      uses: dawidd6/action-send-mail@v3.5.0
       with:
         server_address: smtp.gmail.com
         server_port: 465
