@@ -57,7 +57,7 @@ rcParams.update({"figure.figsize": (12, 6)})
 if not username:
     username = os.getenv("KITCHENER_UTILITIES_USER")
 if not password:
-    password = os.getenv("KITCHENER_UTILITIES_PASSWORD", password)
+    password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
 
 # Set the path where data is saved.
 data_path = os.path.join("..", "..", "..", "data")
