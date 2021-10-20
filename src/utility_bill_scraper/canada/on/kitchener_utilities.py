@@ -10,12 +10,19 @@ import time
 import arrow
 import numpy as np
 import pandas as pd
+from bs4 import BeautifulSoup
 from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
 )
 
-from utility_bill_scraper import Timeout, UtilityAPI, convert_divs_to_df, format_fields
+from utility_bill_scraper import (
+    Timeout,
+    UtilityAPI,
+    convert_divs_to_df,
+    format_fields,
+    pdf_to_html,
+)
 
 
 def get_name():
@@ -510,6 +517,25 @@ class KitchenerUtilitiesAPI(UtilityAPI):
             return pd.Series(list(data.values()), index=dates)
 
         return convert_to_series(results)
+
+    def extract_data(self, pdf_file):
+        html_file = pdf_to_html(pdf_file)
+        with open(html_file, "r", encoding="utf8") as f:
+            soup = BeautifulSoup(f, "html.parser")
+        os.remove(html_file)
+        summary = get_summary(soup)
+
+        # To do: several functions were broken when updating to python3
+        result = {
+            "name": self.name,
+            "summary": summary,
+            "water consumption": get_water_consumption(soup),
+            # 'water and sewer charges': self.get_water_and_sewer_charges(soup),
+            "gas consumption": get_gas_consumption(soup),
+            # 'gas charges': self.get_gas_charges(soup),
+            # 'gas rates': self.get_gas_rates(soup)
+        }
+        return result
 
     def convert_data_to_df(self, data):
         cols = list(data[0]["summary"].keys())
