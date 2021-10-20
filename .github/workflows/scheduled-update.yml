@@ -40,8 +40,8 @@ jobs:
     #    poetry run jupyter nbconvert --execute --to html notebooks/canada/on/kitchener_utilities.ipynb
     - name: Update Kitchener Utilities
       env:
-        KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
-        KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
+        USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
+        PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
         DATA_PATH: ${{ secrets.DATA_PATH }}
         GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
       run: |
