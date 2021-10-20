@@ -65,7 +65,7 @@ data_path = os.path.join("..", "..", "..", "data")
 ku_api = ku.KitchenerUtilitiesAPI(username, password, data_path, headless=False)
 
 # Get up to 24 statements (the most recent).
-updates = ku_api.update(2)
+updates = ku_api.update(24)
 if updates is not None:
     print(f"{ len(updates) } statements_downloaded")
 ku_api.history().tail()
@@ -165,3 +165,5 @@ plt.title("Cumulative CO$_2$e emissions from natural gas per year")
 
 # %%
 shutil.make_archive(os.path.join(".", "download"), "zip", data_path)
+
+# %%
