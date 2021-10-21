@@ -55,7 +55,7 @@ def export(utility_name, data_path, output, google_sa_credentials):
 def main():
     parser = argparse.ArgumentParser(description="ubs (Utility bill scraper)")
     parser.add_argument("-e", "--env", help="path to .env file")
-    parser.add_argument("--data-path", help="folder containing the history file")
+    parser.add_argument("--data-path", help="folder containing the data file and statements")
     parser.add_argument("--utility-name", help="name of the utility")
     parser.add_argument(
         "--google-sa-credentials", help="google service account credentials"
@@ -76,7 +76,7 @@ def main():
     )
 
     parser_export = subparsers.add_parser("export")
-    parser_export.add_argument("-o", "--output", help="export file path.")
+    parser_export.add_argument("-o", "--output", help="export file path")
 
     args = parser.parse_args(sys.argv[1:])
 
