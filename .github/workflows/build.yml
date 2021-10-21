@@ -41,9 +41,7 @@ jobs:
     - name: Generate README.md and update TOC
       run: |
         poetry run jupyter nbconvert README.ipynb --no-input --to markdown
-        git diff
         doctoc --github --title "## Table of contents" README.md
-        git diff
     - name: Commit README.md to git
       continue-on-error: true
       run: |
