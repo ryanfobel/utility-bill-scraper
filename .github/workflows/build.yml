@@ -19,8 +19,10 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.9
-    - name: Install python3.9-venv and firefox
-      run: sudo apt-get install python3.9-venv firefox
+    - name: Install python3.9-venv, firefox, npm, doctoc
+      run: |
+        sudo apt-get install python3.9-venv firefox npm
+        install -g doctoc
     - name: Install poetry
       uses: abatilo/actions-poetry@v2.0.0
       with:
@@ -28,10 +30,17 @@ jobs:
     - name: Poetry install
       run: |
         poetry install
-    - name: Generate README.md
-      run: poetry run jupyter nbconvert README.ipynb --no-input --to markdown
-    - name: Update TOC
-      uses: technote-space/toc-generator@v4
+    - name: Generate README.md and update TOC
+      run: |
+        poetry run jupyter nbconvert README.ipynb --no-input --to markdown
+        doctoc --github --title "## Table of contents" README.md
+    - name: Commit README.md to git
+      continue-on-error: true
+      run: |
+        # Stage the file, commit and push
+        git add README.md
+        git commit -m "update data"
+        git push origin main        
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
