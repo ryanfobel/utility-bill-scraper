@@ -8,8 +8,6 @@ Download energy usage data and estimate CO2 emissions from utility websites or p
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-<!-- param::title::## Table of contents:: -->
-<!-- param::mode::github.com:: -->
 ## Table of contents
 
 - [Supported utilities](#supported-utilities)
