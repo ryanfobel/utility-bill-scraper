@@ -29,7 +29,7 @@ Download energy usage data and estimate CO2 emissions from utility websites or p
 
 ## Supported utilities
 
-The simplest way to get started without installing anything on your computer is to click on one of the following links, which will open a session on https://mybinder.org where you can try downloading some data. **Note: after you click on the link, it will take a couple of minutes to load an interactive Jupyter notebook.** Then follow the instructions (e.g., provide your `username` and `password`), then run the notebook directly from your browser.
+The simplest way to get started is to click on one of the following links, which will open a session on https://mybinder.org where you can try downloading some data. **Note: after you click on the link, it will take a couple of minutes to load an interactive Jupyter notebook.** Then follow the instructions (e.g., provide your `username` and `password`) to run the notebook directly from your browser.
 
  * [Kitchener Utilities (gas & water)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
  
@@ -41,7 +41,7 @@ pip install utility-bill-scraper
 
 ## Data storage
 
-All data is stored in a `*.csv` file located at `$DATA_PATH/$UTILITY_NAME/data.csv` .The `DATA_PATH` can be set as input argument when creating an API object via the `data_path` argument, or via the `--data-path` command line switch or `DATA_PATH` environment variable when using the [command line lnterface](#command-line-utilities).
+All data is stored in a file located at `$DATA_PATH/$UTILITY_NAME/data.csv`. The path to this file can be set as input argument when initializing API object via the `data_path` argument, or via the `--data-path` command line switch or `DATA_PATH` environment variable when using the [command line lnterface](#command-line-utilities).
 
 ```
 └───data
@@ -87,7 +87,7 @@ plt.title("Monthly Gas Consumption")
 plt.ylabel("m$^3$")
 ```
 
-![monthly gas consumption](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_gas_consumption.svg)
+![monthly gas consumption](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_gas_consumption.png)
 
 ### Convert gas consumption to CO2 emissions
 
@@ -129,7 +129,7 @@ plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Monthly CO$_2$e emissions from natural gas")
 ```
-![monthly_co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_co2_emissions.svg)
+![monthly_co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_co2_emissions.png)
 
 ## Command line utilities
 
@@ -187,4 +187,4 @@ MAX_DOWNLOADS
 
 ## Contributors
 
-* Ryan Fobel ([@ryanfobel](https://github.com/ryanfobel)
+* Ryan Fobel ([@ryanfobel](https://github.com/ryanfobel))
