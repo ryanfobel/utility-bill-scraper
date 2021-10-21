@@ -33,6 +33,7 @@ bin_width = 0.9
 alpha = 0.5
 transparent = False
 bbox_inches = "tight"
+facecolor = "white"
 
 # %matplotlib inline
 
@@ -95,6 +96,7 @@ plt.savefig(
     os.path.join("images", "monthly_gas_consumption.png"),
     bbox_inches=bbox_inches,
     transparent=transparent,
+    facecolor=facecolor,
 )
 
 plt.figure()
@@ -106,6 +108,7 @@ plt.savefig(
     os.path.join("images", "monthly_water_consumption.png"),
     bbox_inches=bbox_inches,
     transparent=transparent,
+    facecolor=facecolor,
 )
 
 # %% [markdown]
@@ -131,6 +134,7 @@ plt.savefig(
     os.path.join("images", "annual_co2_emissions.png"),
     bbox_inches=bbox_inches,
     transparent=transparent,
+    facecolor=facecolor,
 )
 
 # %% [markdown]
@@ -163,6 +167,7 @@ plt.savefig(
     os.path.join("images", "monthly_co2_emissions.png"),
     bbox_inches=bbox_inches,
     transparent=transparent,
+    facecolor=facecolor,
 )
 
 plt.figure()
@@ -189,6 +194,7 @@ plt.savefig(
     os.path.join("images", "cumulative_co2_emissions.png"),
     bbox_inches=bbox_inches,
     transparent=transparent,
+    facecolor=facecolor,
 )
 
 # %% [markdown]
