@@ -45,8 +45,9 @@ jobs:
         git config user.email "<>"
         # Stage the file, commit and push
         git add README.md
-        git commit -m "update data"
-        git push origin main        
+        git commit -m "update README.md"
+        git status
+        git push origin main
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
