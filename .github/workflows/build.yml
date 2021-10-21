@@ -34,14 +34,14 @@ jobs:
     - name: Poetry install
       run: |
         poetry install
-    - name: Generate README.md and update TOC
-      run: |
-        poetry run jupyter nbconvert README.ipynb --no-input --to markdown
-        doctoc --github --title "## Table of contents" README.md
     - name: Extract branch name
       shell: bash
       run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
       id: extract_branch
+    - name: Generate README.md and update TOC
+      run: |
+        poetry run jupyter nbconvert README.ipynb --no-input --to markdown
+        doctoc --github --title "## Table of contents" README.md
     - name: Commit README.md to git
       continue-on-error: true
       run: |
