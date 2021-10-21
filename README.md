@@ -41,7 +41,7 @@ pip install utility-bill-scraper
 
 ## Data storage
 
-All data is stored in a file located at `$DATA_PATH/$UTILITY_NAME/data.csv`. The path to this file can be set as input argument when initializing API object via the `data_path` argument, or via the `--data-path` command line switch or `DATA_PATH` environment variable when using the [command line lnterface](#command-line-utilities).
+All data is stored in a file located at `$DATA_PATH/$UTILITY_NAME/data.csv`. The path to this file can be set as input argument when initializing an API object via the `data_path` argument.
 
 ```
 └───data
@@ -159,9 +159,9 @@ ubs (Utility bill scraper)
 
 optional arguments:
   -h, --help            show this help message and exit
-  -e ENV, --env ENV     path to .env file.
+  -e ENV, --env ENV     path to .env file
   --data-path DATA_PATH
-                        folder containing the history file
+                        folder containing the data file and statements
   --utility-name UTILITY_NAME
                         name of the utility
   --google-sa-credentials GOOGLE_SA_CREDENTIALS
@@ -176,13 +176,13 @@ subcommands:
 Note that many options can be set via environment variables (useful for continuous integration and/or working with containers). The following can be set in your shell or via a `.env` file passed using the `-e` option.
 
 ```sh
-DATA_PATH
-UTILITY_NAME
-GOOGLE_SA_CREDENTIALS
-USER
-PASSWORD
-SAVE_STATEMENTS
-MAX_DOWNLOADS
+DATA_PATH="folder containing the data file and statements"
+UTILITY_NAME="name of the utility"
+GOOGLE_SA_CREDENTIALS="google service account credentials"
+USER="username"
+PASSWORD="password"
+SAVE_STATEMENTS="save downloaded statements (default=True)"
+MAX_DOWNLOADS="maximum number of statements to download"
 ```
 
 ## Contributors
