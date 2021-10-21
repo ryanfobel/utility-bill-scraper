@@ -18,7 +18,7 @@
 #
 # # Introduction
 #
-# This notebook demonstrates how to download and scrape `*.pdf` statements from the [Kitchener Utilities](https://www.kitchenerutilities.ca) website. You can launch an interactive version of this page by clicking on the badge at the top of the page.
+# This notebook demonstrates downloading pdf statements and extracting data from a [Kitchener Utilities](https://www.kitchenerutilities.ca) account. You can launch an interactive version of this page by clicking on the badge at the top of the page.
 #
 # ## Setup
 #
@@ -31,6 +31,8 @@ password = ""
 # Plotting preferences
 bin_width = 0.9
 alpha = 0.5
+transparent = False
+bbox_inches = "tight"
 
 # %matplotlib inline
 
@@ -89,7 +91,11 @@ plt.xticks(rotation=90)
 plt.title("Monthly Gas Consumption")
 plt.ylabel("m$^3$")
 os.makedirs("images", exist_ok=True)
-plt.savefig(os.path.join("images", "monthly_gas_consumption.svg"), bbox_inches="tight")
+plt.savefig(
+    os.path.join("images", "monthly_gas_consumption.png"),
+    bbox_inches=bbox_inches,
+    transparent=transparent,
+)
 
 plt.figure()
 plt.bar(df_ku.index, df_ku["Water Consumption"], width=bin_width, alpha=alpha)
@@ -97,7 +103,9 @@ plt.xticks(rotation=90)
 plt.title("Monthly Water Consumption")
 plt.ylabel("m$^3$")
 plt.savefig(
-    os.path.join("images", "monthly_water_consumption.svg"), bbox_inches="tight"
+    os.path.join("images", "monthly_water_consumption.png"),
+    bbox_inches=bbox_inches,
+    transparent=transparent,
 )
 
 # %% [markdown]
@@ -119,7 +127,11 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Annual CO$_2$e emissions from natural gas")
-plt.savefig(os.path.join("images", "annual_co2_emissions.svg"), bbox_inches="tight")
+plt.savefig(
+    os.path.join("images", "annual_co2_emissions.png"),
+    bbox_inches=bbox_inches,
+    transparent=transparent,
+)
 
 # %% [markdown]
 # # CO2 emissions vs previous year
@@ -147,7 +159,11 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Monthly CO$_2$e emissions from natural gas")
-plt.savefig(os.path.join("images", "monthly_co2_emissions.svg"), bbox_inches="tight")
+plt.savefig(
+    os.path.join("images", "monthly_co2_emissions.png"),
+    bbox_inches=bbox_inches,
+    transparent=transparent,
+)
 
 plt.figure()
 for year, df_year in df_ku.groupby("year"):
@@ -169,7 +185,11 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Cumulative CO$_2$e emissions from natural gas per year")
-plt.savefig(os.path.join("images", "cumulative_co2_emissions.svg"), bbox_inches="tight")
+plt.savefig(
+    os.path.join("images", "cumulative_co2_emissions.png"),
+    bbox_inches=bbox_inches,
+    transparent=transparent,
+)
 
 # %% [markdown]
 # ## Save data as `downloads.zip` or print link to gdrive folder
