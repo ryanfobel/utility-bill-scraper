@@ -38,6 +38,10 @@ jobs:
       run: |
         poetry run jupyter nbconvert README.ipynb --no-input --to markdown
         doctoc --github --title "## Table of contents" README.md
+    - name: Extract branch name
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: extract_branch
     - name: Commit README.md to git
       continue-on-error: true
       run: |
@@ -46,8 +50,7 @@ jobs:
         # Stage the file, commit and push
         git add README.md
         git commit -m "update README.md"
-        git status
-        git push origin main
+        git push origin ${{ steps.extract_branch.outputs.branch }}
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
