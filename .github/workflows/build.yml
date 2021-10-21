@@ -37,6 +37,8 @@ jobs:
     - name: Commit README.md to git
       continue-on-error: true
       run: |
+        git config user.name "GitHub Actions Bot"
+        git config user.email "<>"
         # Stage the file, commit and push
         git add README.md
         git commit -m "update data"
