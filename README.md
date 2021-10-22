@@ -24,7 +24,8 @@ There are [many](https://app.projectneutral.org/) [existing](https://coolclimate
 - [Getting and plotting data using the Python API](#getting-and-plotting-data-using-the-python-api)
   - [Update data](#update-data)
   - [Plot monthly gas consumption](#plot-monthly-gas-consumption)
-  - [Convert gas consumption to CO2 emissions](#convert-gas-consumption-to-co2-emissions)
+  - [Convert gas consumption to CO<sub>2</sub> emissions](#convert-gas-consumption-to-cosub2sub-emissions)
+  - [Plot Annual CO<sub>2</sub> emissions](#plot-annual-cosub2sub-emissions)
 - [Command line utilities](#command-line-utilities)
   - [Update data](#update-data-1)
   - [Export data](#export-data)
@@ -96,13 +97,35 @@ plt.ylabel("m$^3$")
 
 ![monthly gas consumption](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_gas_consumption.png)
 
-### Convert gas consumption to CO2 emissions
+### Convert gas consumption to CO<sub>2</sub> emissions
 
 ```python
 from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
 
 df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
 ```
+
+### Plot Annual CO<sub>2</sub> emissions
+
+```python
+from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
+
+df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
+df_ku["year"] = [int(x[0:4]) for x in df_ku.index]
+df_ku["month"] = [int(x[5:7]) for x in df_ku.index]
+
+plt.figure()
+df_ku.groupby("year").sum()["Gas Consumption"].plot.bar(width=bin_width, alpha=alpha)
+plt.ylabel("m$^3$")
+ylim = plt.ylim()
+ax = plt.gca()
+ax2 = ax.twinx()
+plt.ylabel("tCO$_2$e")
+plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
+plt.title("Annual CO$_2$e emissions from natural gas")
+```
+
+![annual co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/annual_co2_emissions.png)
 
 ## Command line utilities
 
