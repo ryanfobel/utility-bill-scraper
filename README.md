@@ -4,7 +4,15 @@
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/utility-bill-scraper.svg)](https://pypi.python.org/pypi/utility-bill-scraper/)
 
-Download energy usage data and estimate CO2 emissions from utility websites or pdf bills.
+Download energy usage data and estimate CO<sub>2</sub> emissions from utility websites or pdf bills.
+
+## What is this?
+
+The science is clear — global temperatures are rising and we need to drastically reduce our use of fossil fuels if we want to keep our planet habitable for future generations. Many governments around the world are declaring [climate emergencies](https://qz.com/1786781/which-cities-have-declared-climate-emergencies/) and are setting ambitious targets to reduce emissions (e.g., [net zero by 2050](https://www.ipcc.ch/sr15/), [50% reduction by 2030](https://www.npr.org/2021/04/16/987667828/how-the-u-s-could-halve-climate-emissions-by-2030)). While broad systemic changes are clearly required, individual action is also important. For those living in the [Global North](https://en.wikipedia.org/wiki/Global_North_and_Global_South), the majority of fossil-fuel emissions arise from heating/cooling our homes, using electricity, transportation, and the food we eat. It's obvious that we need to burn less fossil fuels, but what's needed are (1) **clear targets**, (2) **a plan to achieve them**, and (3) **tools for measuring progress**.
+
+There are [many](https://app.projectneutral.org/) [existing](https://coolclimate.berkeley.edu/calculator) [carbon](https://www.nature.org/en-us/get-involved/how-to-help/carbon-footprint-calculator/) [footprint](https://www.carbonfootprint.com/calculator.aspx) [calculators](https://www3.epa.gov/carbon-footprint-calculator/), but they often require manual data entry, leading most people to try them once to get a static snapshot at a point in time. While useful for gaining a high-level understanding of your personal emission sources, it would be much better if this footprint could be automatically updated over time to provide people with **feedback** on the impact of their actions. This project aims to do just that — to assist individuals with collecting data from utility companies (e.g., electricity and natural gas) by automatically downloading their data and converting usage into CO<sub>2</sub> emissions.
+
+![monthly_co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_co2_emissions.png)
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -17,7 +25,6 @@ Download energy usage data and estimate CO2 emissions from utility websites or p
   - [Update data](#update-data)
   - [Plot monthly gas consumption](#plot-monthly-gas-consumption)
   - [Convert gas consumption to CO2 emissions](#convert-gas-consumption-to-co2-emissions)
-  - [Plot CO2 emissions versus previous years](#plot-co2-emissions-versus-previous-years)
 - [Command line utilities](#command-line-utilities)
   - [Update data](#update-data-1)
   - [Export data](#export-data)
@@ -96,40 +103,6 @@ from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
 
 df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
 ```
-
-### Plot CO2 emissions versus previous years
-
-```python
-import datetime as dt
-
-df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
-df_ku["year"] = [int(x[0:4]) for x in df_ku.index]
-df_ku["month"] = [int(x[5:7]) for x in df_ku.index]
-
-n_years_history = 1
-
-plt.figure()
-for year, df_year in df_ku.groupby("year"):
-    if year >= dt.datetime.utcnow().year - n_years_history:
-        df_year.sort_values("month", inplace=True)
-        plt.bar(
-            df_year["month"],
-            df_year["Gas Consumption"],
-            label=year,
-            width=0.9,
-            alpha=0.5,
-        )
-plt.legend()
-plt.ylabel("m$^3$")
-plt.xlabel("Month")
-ylim = plt.ylim()
-ax = plt.gca()
-ax2 = ax.twinx()
-plt.ylabel("tCO$_2$e")
-plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
-plt.title("Monthly CO$_2$e emissions from natural gas")
-```
-![monthly_co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_co2_emissions.png)
 
 ## Command line utilities
 
