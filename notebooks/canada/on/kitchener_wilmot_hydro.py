@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.3.3
+#       jupytext_version: 1.13.0
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -21,89 +21,160 @@
 # %load_ext autoreload
 # %autoreload 2
 
-import os
+username = ""
+password = ""
 
-# Add parent directory to python path.
-import sys
-import time
-from glob import glob
-
-import arrow
-import matplotlib.pyplot as plt
-import pandas as pd
-from IPython import display
-from matplotlib import rcParams
-
-sys.path.insert(0, "..")
-import utility_bill_scraper.kitchener_wilmot_hydro as kwh
-from utility_bill_scraper import convert_data_to_df, process_pdf
+# Plotting preferences
+bin_width = 0.9
+alpha = 0.5
+transparent = False
+bbox_inches = "tight"
+facecolor = "white"
 
 # %matplotlib inline
 
+import os
+import shutil
+import sys
+
+# Update the path to include the src directory
+sys.path.insert(0, os.path.abspath(os.path.join("..", "..", "..", "src")))
+
+import matplotlib.pyplot as plt
+from dotenv import load_dotenv
+from matplotlib import rcParams
+
+import utility_bill_scraper.canada.on.kitchener_wilmot_hydro as kwh
+
+# Load the `.env` file into the environment if it exists
+load_dotenv()
+
 rcParams.update({"figure.figsize": (12, 6)})
 
-data_directory = os.path.abspath(os.path.join("..", "data"))
+# If we haven't set a username/password, try getting them from
+# environment variables.
+if not username:
+    username = os.getenv("KWHYDRO_USER")
+if not password:
+    password = os.getenv("KWHYDRO_PASSWORD")
+
+# Set the path where data is saved.
+data_path = os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data"))
+
+# Get google service account credentials (if the environment variable is set).
+google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
+
+# Uncomment the following 2 lines for development
+# %load_ext autoreload
+# %autoreload 2
+
+api = kwh.KitchenerWilmotHydroAPI(
+    username,
+    password,
+    data_path,
+    google_sa_credentials=google_sa_credentials,
+    headless=False,
+)
+
+"""
+# Get up to 24 statements (the most recent).
+updates = api.update(1)
+if updates is not None:
+    print(f"{ len(updates) } statements_downloaded")
+api.history().tail()
+"""
 
 # +
-kwh_api = None
 
-try:
-    # Create a Kitchener-Wilmot Hydro API object with your user name and password
-    from credentials import password, user
+# api.download_statements(max_downloads=1)
 
-    kwh_api = kwh.KitchenerWilmotHydroAPI(
-        user[kwh.get_name()], password[kwh.get_name()], data_directory
-    )
-
-    print("Downloading invoices from %s..." % kwh_api.name)
-    start_time = time.time()
-    invoices = kwh_api.download_invoices()
-    print("kwh_api.download_invoices() took %d seconds" % (time.time() - start_time))
-    display(invoices.head())
-    bills_list = glob(os.path.join(kwh_api._invoice_directory, "*.pdf"))
-except ModuleNotFoundError:
-    print("Using test data...")
-    bills_list = glob(
-        os.path.join(os.path.join("..", "tests", kwh.get_name()), "*.pdf")
-    )
+import tempfile
+import time
 
 # +
-# Load csv with previously cached data if it exists
-df_kwh = pd.DataFrame()
-cached_invoice_dates = []
-filepath = os.path.join(data_directory, kwh.get_name(), "data.csv")
+import arrow
 
-if os.path.exists(filepath):
-    df_kwh = pd.read_csv(filepath).set_index("Date")
-    cached_invoice_dates = list(df_kwh.index)
+self = api
+start_date = None
+end_date = None
 
-# Scrape data from pdf files
+# def download_statements(self, start_date=None, end_date=None, timeout=5):
+download_path = tempfile.mkdtemp()
+self._init_driver()
+downloaded_files = []
+
+self._login()
+
+# convert start and end dates to date objects
+if start_date:
+    start_date = arrow.get(start_date).date()
+if end_date:
+    end_date = arrow.get(end_date).date()
+
+# Iterate through the invoices in reverse chronological order
+# (i.e., newest invoices are first).
+
+# +
+link = self._driver.find_element_by_link_text("Bills & Payment")
+link.location_once_scrolled_into_view
+link.click()
+
+self._driver.switch_to.frame("iframe-BILLINQ")
+time.sleep(0.5)
+
+# +
+from utility_bill_scraper import wait_for_element
+
+
+@wait_for_element
+def get_bills_table():
+    return self._driver.find_element_by_id("billsTable")
+
+
+@wait_for_element
+def get_bills_table_rows(bills_table):
+    rows = [
+        [y for y in x.find_elements_by_tag_name("td")]
+        for x in bills_table.find_element_by_tag_name(
+            "tbody"
+        ).find_elements_by_tag_name("tr")[2:]
+    ]
+    return rows
+
+
+bills_table = get_bills_table()
+rows = get_bills_table_rows(bills_table)
+# -
+
+max_downloads = 1
+
 data = []
+for row in rows:
+    row_data = [x.text for x in row[1:]]
 
-for pdf_file in bills_list:
-    date = os.path.splitext(os.path.basename(pdf_file))[0].split(" - ")[0]
+    date = arrow.get(row_data[0], "MMM D, YYYY").date()
 
-    # If we've already scraped this pdf, continue
-    if date not in cached_invoice_dates:
-        print("Scrape data from %s" % pdf_file)
-        result = process_pdf(pdf_file, rename=True)
-        if result:
-            data.append(result)
+    data.append(row_data)
+    new_filepath = os.path.join(
+        download_path,
+        "%s - %s - $%s.pdf" % (date.isoformat(), self.name, row_data[1].split(" ")[1]),
+    )
+    downloaded_files.append(new_filepath)
 
-# Convert the list of dictionaries into a dictionary of data frames (one for
-# each utility in the dataset).
-df = convert_data_to_df(data)
+    # download the pdf invoice
+    img = row[0].find_element_by_tag_name("img")
+    filepath = self.download_link(img, "pdf")
+    print(filepath, new_filepath)
+    shutil.move(filepath, new_filepath)
 
-# If there's any new data, append it to the cached data
-if df:
-    df_kwh = df_kwh.append(df[kwh.get_name()])
+downloaded_files
+pdf = downloaded_files[0]
+pdf
 
-    # If the data directory doesn't exist yet, create it
-    if not os.path.isdir(os.path.join(data_directory, kwh.get_name())):
-        os.makedirs(os.path.join(data_directory, kwh.get_name()))
+# +
+result, new_name = api.extract_data(pdf)
 
-    # Update csv file
-    df_kwh.to_csv(filepath)
+print(result, new_name)
 
 # +
 plt.figure()

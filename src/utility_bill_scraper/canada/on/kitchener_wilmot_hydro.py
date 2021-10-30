@@ -1,18 +1,24 @@
-import datetime
 import glob
 import os
 import random
 import re
+import shutil
 import tempfile
 import time
 
 import arrow
 import numpy as np
 import pandas as pd
-from selenium import webdriver
+from bs4 import BeautifulSoup
 from selenium.common.exceptions import NoSuchElementException
 
-from utility_bill_scraper import format_fields
+from utility_bill_scraper import (
+    Timeout,
+    UtilityAPI,
+    format_fields,
+    pdf_to_html,
+    wait_for_element,
+)
 
 
 def get_name():
@@ -114,70 +120,30 @@ def get_amount_due(soup):
     return amount_due
 
 
-def convert_data_to_df(data):
-    df = pd.DataFrame(
-        {
-            "Date": [arrow.get(x["date"]).date() for x in data],
-            "Amount Due": [x["amount due"] for x in data],
-            "Off Peak Consumption": [
-                x["electricity consumption"]["off peak"] for x in data
-            ],
-            "Mid Peak Consumption": [
-                x["electricity consumption"]["mid peak"] for x in data
-            ],
-            "On Peak Consumption": [
-                x["electricity consumption"]["on peak"] for x in data
-            ],
-            "Off Peak Rate": [x["electricity rates"]["off peak"] for x in data],
-            "Mid Peak Rate": [x["electricity rates"]["mid peak"] for x in data],
-            "On Peak Rate": [x["electricity rates"]["on peak"] for x in data],
-        }
-    )
-    df = df.set_index("Date")
-
-    df["Total Consumption"] = (
-        df["Off Peak Consumption"]
-        + df["Mid Peak Consumption"]
-        + df["On Peak Consumption"]
-    )
-    return df
-
-
-class Timeout(Exception):
-    pass
-
-
-class KitchenerWilmotHydroAPI:
+class KitchenerWilmotHydroAPI(UtilityAPI):
     name = get_name()
 
-    def __init__(self, user, password, data_directory="."):
-        self._user = user
-        self._password = password
-        self._driver = None
-        self._invoice_list = None
-        self._temp_download_dir = tempfile.mkdtemp()
-        self._data_directory = data_directory
-        self._hourly_data_directory = None
-        self._invoice_directory = None
-
-    def _init_driver(self, headless=False):
-        options = webdriver.ChromeOptions()
-        prefs = {
-            "download.default_directory": self._temp_download_dir,
-            "plugins.always_open_pdf_externally": True,
-        }
-        options.add_experimental_option("prefs", prefs)
-        # options.add_argument('window-size=1200x600')
-        options.add_argument("window-size=1920x1080")
-
-        if headless:
-            options.add_argument("headless")
-
-        self._driver = webdriver.Chrome(options=options)
-
-    def _close_driver(self):
-        self._driver.close()
-        self._driver = None
+    def __init__(
+        self,
+        user=None,
+        password=None,
+        data_path=None,
+        file_ext=".csv",
+        headless=True,
+        timeout=10,
+        save_statements=True,
+        google_sa_credentials=None,
+    ):
+        super().__init__(
+            user=user,
+            password=password,
+            data_path=data_path,
+            file_ext=file_ext,
+            headless=headless,
+            timeout=timeout,
+            save_statements=save_statements,
+            google_sa_credentials=google_sa_credentials,
+        )
 
     def _login(self):
         self._driver.get("https://www3.kwhydro.on.ca/app/login.jsp")
@@ -335,17 +301,38 @@ class KitchenerWilmotHydroAPI:
         finally:
             self._close_driver()
 
-    def download_invoices(self, start_date=None, end_date=None, timeout=5):
-        if self._invoice_list is not None:
-            return self._invoice_list
+    def extract_data(self, pdf):
+        html_file = pdf_to_html(pdf)
+        with open(html_file, "r", encoding="utf8") as f:
+            soup = BeautifulSoup(f, "html.parser")
+        os.remove(html_file)
 
-        self._init_driver(headless=False)
+        date = get_billing_date(soup)
+        amount_due = get_amount_due(soup)
+        "%s - %s - $%.2f.pdf" % (date, get_name(), amount_due)
 
-        self._invoice_directory = os.path.abspath(
-            os.path.join(self._data_directory, self.name, "invoices")
-        )
-        if not os.path.isdir(self._invoice_directory):
-            os.makedirs(self._invoice_directory)
+        rates = get_electricity_rates(soup)
+        consuption = get_electricity_consumption(soup)
+
+        result = {
+            "Date": date,
+            "Amount Due": amount_due,
+            "Off Peak Consumption": consuption["off peak"],
+            "Mid Peak Consumption": consuption["mid peak"],
+            "On Peak Consumption": consuption["on peak"],
+            "Total Consumption": consuption["off peak"]
+            + consuption["mid peak"]
+            + consuption["on peak"],
+            "Off Peak Rate": rates["off peak"],
+            "Mid Peak Rate": rates["mid peak"],
+            "On Peak Rate": rates["on peak"],
+        }
+        return result
+
+    def download_statements(self, start_date=None, end_date=None, max_downloads=None):
+        download_path = tempfile.mkdtemp()
+        self._init_driver()
+        downloaded_files = []
 
         try:
             self._login()
@@ -361,20 +348,28 @@ class KitchenerWilmotHydroAPI:
 
             # Open Bills & Payment
             link = self._driver.find_element_by_link_text("Bills & Payment")
-            self._driver.execute_script("arguments[0].scrollIntoView(true);", link)
-            time.sleep(0.5)
+            link.location_once_scrolled_into_view
             link.click()
 
             self._driver.switch_to.frame("iframe-BILLINQ")
             time.sleep(0.5)
-            bills_table = self._driver.find_element_by_id("billsTable")
 
-            rows = [
-                [y for y in x.find_elements_by_tag_name("td")]
-                for x in bills_table.find_element_by_tag_name(
-                    "tbody"
-                ).find_elements_by_tag_name("tr")[2:]
-            ]
+            @wait_for_element
+            def get_bills_table():
+                return self._driver.find_element_by_id("billsTable")
+
+            @wait_for_element
+            def get_bills_table_rows(bills_table):
+                rows = [
+                    [y for y in x.find_elements_by_tag_name("td")]
+                    for x in bills_table.find_element_by_tag_name(
+                        "tbody"
+                    ).find_elements_by_tag_name("tr")[2:]
+                ]
+                return rows
+
+            bills_table = get_bills_table()
+            rows = get_bills_table_rows(bills_table)
 
             data = []
             for row in rows:
@@ -388,59 +383,23 @@ class KitchenerWilmotHydroAPI:
                 if end_date and date > end_date:
                     continue
 
+                if max_downloads and len(downloaded_files) >= max_downloads:
+                    break
+
                 data.append(row_data)
                 new_filepath = os.path.join(
-                    self._invoice_directory,
+                    download_path,
                     "%s - %s - $%s.pdf"
                     % (date.isoformat(), self.name, row_data[1].split(" ")[1]),
                 )
 
-                def download_link(link, ext, timeout=5):
-                    # remove all files in the temp dir
-                    files = os.listdir(self._temp_download_dir)
-                    for file in files:
-                        os.remove(os.path.join(self._temp_download_dir, file))
-
-                    # add a random delay to keep from being banned
-                    time.sleep(1 * random.random() * 3)
-
-                    # download the link
-                    link.click()
-
-                    t_start = time.time()
-                    filepath = None
-                    # wait for the file to finish downloading
-                    while time.time() - t_start < timeout:
-                        files = glob.glob(
-                            os.path.join(self._temp_download_dir, "*.%s" % ext)
-                        )
-                        if len(files):
-                            filepath = os.path.join(self._temp_download_dir, files[0])
-                            time.sleep(0.5)
-                            break
-                    if not filepath:
-                        raise Timeout
-                    return filepath
-
+                downloaded_files.append(new_filepath)
                 if not os.path.exists(new_filepath):
                     # download the pdf invoice
                     img = row[0].find_element_by_tag_name("img")
-                    filepath = download_link(img, "pdf")
-                    os.rename(filepath, new_filepath)
+                    filepath = self.download_link(img, "pdf")
+                    shutil.move(filepath, new_filepath)
         finally:
             self._close_driver()
 
-        # Convert to a dictionary
-        results = {}
-        for i, name in enumerate(["Invoice Date", "Invoice Amount"]):
-            results[name] = [x[i] for x in data]
-
-        # Reformat dates
-        for name in ["Invoice Date"]:
-            results[name] = [
-                arrow.get(x, "MMM D, YYYY").date().isoformat() for x in results[name]
-            ]
-
-        self._invoice_list = pd.DataFrame(results)
-
-        return self._invoice_list
+        return downloaded_files

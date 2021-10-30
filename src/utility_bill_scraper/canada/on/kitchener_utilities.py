@@ -1,14 +1,11 @@
 import calendar
-import glob
 import os
-import random
 import re
 import shutil
 import tempfile
 import time
 
 import arrow
-import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import (
@@ -385,41 +382,12 @@ class KitchenerUtilitiesAPI(UtilityAPI):
                         % (date.isoformat(), self.name, row_data[3]),
                     )
 
-                    def download_link(link, ext):
-                        # remove all files in the temp dir
-                        files = os.listdir(self._temp_download_dir)
-                        for file in files:
-                            os.remove(os.path.join(self._temp_download_dir, file))
-
-                        # add a random delay to keep from being banned
-                        time.sleep(1 * random.random() * 3)
-
-                        # download the link
-                        link.click()
-
-                        t_start = time.time()
-                        filepath = None
-                        # wait for the file to finish downloading
-                        while time.time() - t_start < self._timeout:
-                            files = glob.glob(
-                                os.path.join(self._temp_download_dir, "*.%s" % ext)
-                            )
-                            if len(files):
-                                filepath = os.path.join(
-                                    self._temp_download_dir, files[0]
-                                )
-                                time.sleep(0.5)
-                                break
-                        if not filepath:
-                            raise Timeout
-                        return filepath
-
                     downloaded_files.append(new_filepath)
                     if not os.path.exists(new_filepath):
                         # download the pdf statement
                         for img in row[0].find_elements_by_tag_name("img"):
                             if img.get_property("title") == "PDF":
-                                filepath = download_link(img, "pdf")
+                                filepath = self.download_link(img, "pdf")
                                 shutil.move(filepath, new_filepath)
 
                 return data
@@ -519,103 +487,44 @@ class KitchenerUtilitiesAPI(UtilityAPI):
         return convert_to_series(results)
 
     def extract_data(self, pdf_file):
+        """Extract data from a pdf_file.
+
+        Parameters
+        ----------
+        pdf_file :
+            Path to a pdf file.
+
+        Returns
+        ----------
+        dict of key/value pairs extracted from the pdf.
+        Must include "
+        """
         html_file = pdf_to_html(pdf_file)
         with open(html_file, "r", encoding="utf8") as f:
             soup = BeautifulSoup(f, "html.parser")
         os.remove(html_file)
-        summary = get_summary(soup)
 
         # To do: several functions were broken when updating to python3
         result = {
             "name": self.name,
-            "summary": summary,
             "water consumption": get_water_consumption(soup),
             # 'water and sewer charges': self.get_water_and_sewer_charges(soup),
             "gas consumption": get_gas_consumption(soup),
             # 'gas charges': self.get_gas_charges(soup),
             # 'gas rates': self.get_gas_rates(soup)
         }
+        result.update(get_summary(soup))
+
+        print(result)
 
         if "Pre-authorized Withdrawal" in result["summary"].keys():
             amount_due = result["summary"]["Pre-authorized Withdrawal"]
         elif "Total Due" in result["summary"].keys():
             amount_due = result["summary"]["Total Due"]
         else:
-            print("Couldn't find amount due!")
-            amount_due = None
+            raise Exception("Couldn't find amount due!")
 
-        new_name = "%s - %s - $%.2f.pdf" % (
-            arrow.get(result["summary"]["Issue Date"], "MMM DD YYYY").format(
-                "YYYY-MM-DD"
-            ),
-            self.name,
-            amount_due,
-        )
-        return result, new_name
+        result["Total"] = amount_due
+        result["Date"] = result["summary"]["Issue Date"]
 
-    def convert_data_to_df(self, data):
-        cols = list(data[0]["summary"].keys())
-        if "Pre-authorized Withdrawal" in cols:
-            cols.remove("Pre-authorized Withdrawal")
-            cols.append("Total Due")
-
-        for x in data:
-            if "Pre-authorized Withdrawal" in x["summary"].keys():
-                x["summary"]["Total Due"] = x["summary"]["Pre-authorized Withdrawal"]
-        data_sets = []
-        for col in cols:
-            data_sets.append([x["summary"][col] for x in data])
-
-        df = pd.DataFrame(data=dict(zip(cols, data_sets)))
-
-        df["Issue Date"] = [
-            str(arrow.get(x, "MMM DD YYYY").date()) for x in df["Issue Date"]
-        ]
-        df = df.set_index("Issue Date")
-
-        # Extract water and gas consumption.
-        water_consumption = [
-            np.sum(
-                [
-                    x["Total Consumption"] if "Total Consumption" in x else 0
-                    for x in row["water consumption"]
-                ]
-            )
-            for row in data
-        ]
-        gas_consumption = [
-            np.sum(
-                [
-                    x["Total Consumption"] if "Total Consumption" in x else 0
-                    for x in row["gas consumption"]
-                ]
-            )
-            for row in data
-        ]
-        """
-        # To do: gas charges were broken when updating to python3
-        
-        gas_fixed_charge = [x['gas charges']['Gas Fixed Delivery Charge']
-                            if 'Gas Fixed Delivery Charge'
-                            in x['gas charges'] else None for x in data]
-        # Figure out the sales tax rate.
-        sales_tax_on_gas = [x['gas charges']['HST on Gas']
-                            if 'HST on Gas'
-                            in x['gas charges'] else None for x in data]
-        sales_tax_rate = df['Gas Charges'] / (
-            df['Gas Charges'] - sales_tax_on_gas) - 1
-
-        # Adjust the fixed charge by the sales tax
-        df['Gas Fixed Charges'] = np.round(gas_fixed_charge * (
-            1 + sales_tax_rate), 2)
-
-        # Calculate the variable charge and rate.
-        df['Gas Variable Charges'] = df['Gas Charges'] - df['Gas Fixed Charges']
-        df['Gas Variable Rate'] = (df['Gas Variable Charges'] /
-                                df['Gas Consumption'])
-        """
-
-        df["Water Consumption"] = water_consumption
-        df["Gas Consumption"] = gas_consumption
-
-        return df
+        return result

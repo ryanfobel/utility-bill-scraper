@@ -1,24 +1,28 @@
 import datetime as dt
+import errno
+import functools
 import glob
 import io
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
 import tempfile
+import time
+import traceback
+from functools import wraps
 
 import arrow
 import pandas as pd
-from apiclient import discovery
-from google.oauth2.service_account import Credentials
-from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from selenium import webdriver
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+)
 
-DEFAULT_SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
+from .google_drive_helpers import GoogleDriveHelper
 
 # Natural gas emission factor
 # 119.58 lbs CO2/1000 cubic feet of natural gas
@@ -142,37 +146,6 @@ def pdf_to_html(pdf_file):
 
     return html_file
 
-    """
-    elif is_enbridge_gas_bill(soup):
-        from . import enbridge as en
-
-        summary = en.get_summary(soup)
-
-        new_name = "%s - %s - $%s.pdf" % (
-            arrow.get(summary["Bill Date"], "MMM DD, YYYY").format("YYYY-MM-DD"),
-            en.get_name(),
-            summary["Amount Due"],
-        )
-
-        result = {"name": en.get_name(), "summary": summary}
-    elif is_kitchener_wilmot_hydro_bill(soup):
-        from . import kitchener_wilmot_hydro as kwh
-
-        date = kwh.get_billing_date(soup)
-        amount_due = kwh.get_amount_due(soup)
-        new_name = "%s - %s - $%.2f.pdf" % (date, kwh.get_name(), amount_due)
-
-        result = {
-            "name": kwh.get_name(),
-            "date": date,
-            "amount due": amount_due,
-            "electricity rates": kwh.get_electricity_rates(soup),
-            "electricity consumption": kwh.get_electricity_consumption(soup),
-        }
-    else:
-        print("Unrecognized bill type.")
-    """
-
 
 def is_gdrive_path(path):
     if path:
@@ -185,84 +158,36 @@ class Timeout(Exception):
     pass
 
 
-class UnsupportedFileTye(Exception):
+def wait_for_element(func, seconds=5, *args, **kwargs):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        t_start = time.time()
+        while time.time() - t_start < seconds:
+            try:
+                return func(*args, **kwargs)
+            except NoSuchElementException:
+                pass
+        raise Timeout
+
+    return wrapper
+
+
+def wait_for_permission(func, seconds=5, *args, **kwargs):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        t_start = time.time()
+        while time.time() - t_start < seconds:
+            try:
+                return func(*args, **kwargs)
+            except PermissionError:
+                pass
+        raise Timeout
+
+    return wrapper
+
+
+class UnsupportedFileType(Exception):
     pass
-
-
-class GDriveHelper:
-    def __init__(self, service_account_info):
-        if type(service_account_info) == str:
-            service_account_info = json.loads(service_account_info)
-        self._credentials = Credentials.from_service_account_info(
-            info=service_account_info,
-            scopes=DEFAULT_SCOPES,
-        )
-        self._service = discovery.build("drive", "v3", credentials=self._credentials)
-
-    def get_file_in_folder(self, folder_id, file_name):
-        # Query the shared google folder for file that matches `file_name`
-        return (
-            self._service.files()
-            .list(q=f"'{folder_id}' in parents and name='{file_name}'")
-            .execute()["files"][0]
-        )
-
-    def get_file(self, file_id):
-        # Query google drive for a file matching the `file_id`
-        return self._service.files().get(fileId=file_id).execute()
-
-    def create_subfolder(self, parent_folder_id, name):
-        file_metadata = {
-            "name": name,
-            "mimeType": "application/vnd.google-apps.folder",
-            "parents": [parent_folder_id],
-        }
-        file = self._service.files().create(body=file_metadata, fields="id").execute()
-        return file
-
-    def create_file_in_folder(self, folder_id, local_path):
-        print(
-            f"Upload file to google drive folder(folder_id={folder_id}, local_path={local_path}"
-        )
-        file_metadata = {"name": os.path.basename(local_path), "parents": [folder_id]}
-        media = MediaFileUpload(local_path, mimetype="text/csv", resumable=True)
-        file = (
-            self._service.files()
-            .create(body=file_metadata, media_body=media, fields="id")
-            .execute()
-        )
-        return file
-
-    def upload_file(self, file_id, local_path):
-        print(f"Upload file to google drive(file_id={file_id}, local_path={local_path}")
-        file = self.get_file(file_id)
-        media_body = MediaFileUpload(
-            local_path, mimetype=file["mimeType"], resumable=True
-        )
-        updated_file = (
-            self._service.files()
-            .update(fileId=file["id"], media_body=media_body)
-            .execute()
-        )
-        return updated_file
-
-    def download_file(self, file_id, local_path):
-        print(
-            f"Download file from google drive(file_id={file_id}, local_path={local_path}"
-        )
-        file = self._service.files().get_media(fileId=file_id)
-        fh = io.BytesIO()
-        downloader = MediaIoBaseDownload(fh, file)
-        done = False
-        while done is False:
-            status, done = downloader.next_chunk()
-
-        # Make parent dirs if necessary.
-        os.makedirs(os.path.split(local_path)[0], exist_ok=True)
-
-        # Write the file.
-        with open(local_path, "wb") as f:
-            f.write(fh.getbuffer().tobytes())
 
 
 class UtilityAPI:
@@ -289,13 +214,13 @@ class UtilityAPI:
         self._timeout = timeout
 
         if google_sa_credentials is not None:
-            self._gdh = GDriveHelper(google_sa_credentials)
+            self._gdh = GoogleDriveHelper(google_sa_credentials)
         else:
             self._gdh = None
 
         supported_filetypes = [".csv"]
         if self._file_ext not in supported_filetypes:
-            raise UnsupportedFileTye(
+            raise UnsupportedFileType(
                 f"`file_ext`={self._file_ext} has an invalid filetype. Acceptable extensions are "
                 f'{",".join([f"`{x}`" for x in supported_filetypes])}'
             )
@@ -308,30 +233,34 @@ class UtilityAPI:
                 raise RuntimeError(
                     "`data_path` looks like a google drive folder, but `google_sa_credentials` is None."
                 )
-            # Try getting history from the google drive folder
+
+            folder_id = self._data_path.split("/")[-1]
             try:
-                folder_id = self._data_path.split("/")[-1]
                 utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
+            except IndexError:  # Folder doesn't exist
+                utility_folder = self._gdh.create_subfolder(folder_id, self.name)
+
+            try:
                 data_file = self._gdh.get_file_in_folder(
                     utility_folder["id"], "data" + self._file_ext
                 )
-                self._gdh.download_file(
+                file = self._gdh.download_file(
                     data_file["id"],
                     os.path.join(self._temp_download_dir, "data" + self._file_ext),
                 )
                 self._history = pd.read_csv(
                     os.path.join(self._temp_download_dir, "data" + self._file_ext)
-                ).set_index("Issue Date")
-            # If there was a problem, continue without any historical data
-            except Exception as e:
-                print("Couldn't read history from google drive.", e)
+                ).set_index("Date")
+            except IndexError:  # File doesn't exist
+                self._history = pd.DataFrame()
+
         elif os.path.exists(
             os.path.join(self._data_path, self.name, "data" + self._file_ext)
         ):
             # Load csv with previously cached data if it exists locally.
             self._history = pd.read_csv(
                 os.path.join(self._data_path, self.name, "data" + self._file_ext)
-            ).set_index("Issue Date")
+            ).set_index("Date")
 
     def _init_driver(self, browser="Firefox"):
         self._browser = browser
@@ -379,6 +308,31 @@ class UtilityAPI:
     def _close_driver(self):
         self._driver.close()
         self._driver = None
+
+    def download_link(self, link, ext):
+        # remove all files in the temp dir
+        files = os.listdir(self._temp_download_dir)
+        for file in files:
+            os.remove(os.path.join(self._temp_download_dir, file))
+
+        # add a random delay to keep from being banned
+        time.sleep(1 * random.random() * 3)
+
+        # download the link
+        link.click()
+
+        t_start = time.time()
+        filepath = None
+        # wait for the file to finish downloading
+        while time.time() - t_start < self._timeout:
+            files = glob.glob(os.path.join(self._temp_download_dir, "*.%s" % ext))
+            if len(files) and os.path.getsize(files[0]) > 0:
+                filepath = os.path.join(self._temp_download_dir, files[0])
+                time.sleep(0.5)
+                break
+        if not filepath:
+            raise Timeout
+        return filepath
 
     def update(self, max_downloads=None):
         # Download any new statements.
@@ -483,19 +437,18 @@ class UtilityAPI:
 
         return df_new_rows
 
-    def scrape_pdf_file(self, pdf_file):
+    def scrape_pdf_file(self, pdf):
         cached_invoice_dates = list(self._history.index)
 
         # Scrape data from pdf file
-        date = os.path.splitext(os.path.basename(pdf_file))[0].split(" - ")[0]
+        date = os.path.splitext(os.path.basename(pdf))[0].split(" - ")[0]
 
         # If we've already scraped this pdf, continue
         if date not in cached_invoice_dates:
-            print("Scrape data from %s" % pdf_file)
+            print("Scrape data from %s" % pdf)
             try:
-                result, new_name = self.extract_data(pdf_file)
-                os.rename(pdf_file, os.path.join(os.path.dirname(pdf_file), new_name))
-                return self.convert_data_to_df([result])
-            except Exception as e:
-                print(e)
+                result = self.extract_data(pdf)
+                return pd.DataFrame(result, index=[result["Date"]])
+            except Exception:
+                traceback.print_exc()
         return None
