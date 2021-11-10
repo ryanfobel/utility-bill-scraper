@@ -7,6 +7,7 @@ import time
 
 import arrow
 import pandas as pd
+import numpy as np
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import (
     NoSuchElementException,
@@ -497,34 +498,26 @@ class KitchenerUtilitiesAPI(UtilityAPI):
         Returns
         ----------
         dict of key/value pairs extracted from the pdf.
-        Must include "
+        Must include:
+            Date: str
+            Total: str
         """
         html_file = pdf_to_html(pdf_file)
         with open(html_file, "r", encoding="utf8") as f:
             soup = BeautifulSoup(f, "html.parser")
         os.remove(html_file)
 
+        result = get_summary(soup)
         # To do: several functions were broken when updating to python3
-        result = {
-            "name": self.name,
-            "water consumption": get_water_consumption(soup),
-            # 'water and sewer charges': self.get_water_and_sewer_charges(soup),
-            "gas consumption": get_gas_consumption(soup),
-            # 'gas charges': self.get_gas_charges(soup),
-            # 'gas rates': self.get_gas_rates(soup)
-        }
-        result.update(get_summary(soup))
+        result["Water Consumption"] = get_water_consumption(soup)['Total Consumption']
+        result["Gas Consumption"] = get_gas_consumption(soup)['Total Consumption']
 
-        print(result)
-
-        if "Pre-authorized Withdrawal" in result["summary"].keys():
-            amount_due = result["summary"]["Pre-authorized Withdrawal"]
+        if "Pre-authorized Withdrawal" in result.keys():
+            result["Total"] = result.pop("Pre-authorized Withdrawal")
         elif "Total Due" in result["summary"].keys():
-            amount_due = result["summary"]["Total Due"]
+            result["Total"] = result.pop("Total Due")
         else:
             raise Exception("Couldn't find amount due!")
-
-        result["Total"] = amount_due
-        result["Date"] = result["summary"]["Issue Date"]
+        result["Date"] = str(arrow.get(result.pop("Issue Date"), "MMM DD YYYY").date())
 
         return result
