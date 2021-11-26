@@ -286,6 +286,7 @@ class UtilityAPI:
         self._data_path = data_path or os.path.abspath(os.path.join(".", "data"))
         self._file_ext = file_ext
         self._save_statements = save_statements
+        self._timeout = timeout
 
         if google_sa_credentials is not None:
             self._gdh = GDriveHelper(google_sa_credentials)
@@ -307,19 +308,23 @@ class UtilityAPI:
                 raise RuntimeError(
                     "`data_path` looks like a google drive folder, but `google_sa_credentials` is None."
                 )
-
-            folder_id = self._data_path.split("/")[-1]
-            utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
-            data_file = self._gdh.get_file_in_folder(
-                utility_folder["id"], "data" + self._file_ext
-            )
-            self._gdh.download_file(
-                data_file["id"],
-                os.path.join(self._temp_download_dir, "data" + self._file_ext),
-            )
-            self._history = pd.read_csv(
-                os.path.join(self._temp_download_dir, "data" + self._file_ext)
-            ).set_index("Issue Date")
+            # Try getting history from the google drive folder
+            try:
+                folder_id = self._data_path.split("/")[-1]
+                utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
+                data_file = self._gdh.get_file_in_folder(
+                    utility_folder["id"], "data" + self._file_ext
+                )
+                self._gdh.download_file(
+                    data_file["id"],
+                    os.path.join(self._temp_download_dir, "data" + self._file_ext),
+                )
+                self._history = pd.read_csv(
+                    os.path.join(self._temp_download_dir, "data" + self._file_ext)
+                ).set_index("Issue Date")
+            # If there was a problem, continue without any historical data
+            except Exception as e:
+                print("Couldn't read history from google drive.", e)
         elif os.path.exists(
             os.path.join(self._data_path, self.name, "data" + self._file_ext)
         ):
@@ -327,8 +332,6 @@ class UtilityAPI:
             self._history = pd.read_csv(
                 os.path.join(self._data_path, self.name, "data" + self._file_ext)
             ).set_index("Issue Date")
-
-        self._timeout = timeout
 
     def _init_driver(self, browser="Firefox"):
         self._browser = browser
