@@ -1,5 +1,6 @@
 import json
 import os
+import io
 
 from apiclient import discovery
 from google.oauth2.service_account import Credentials
@@ -28,6 +29,13 @@ class GoogleDriveHelper:
             .list(q=f"'{folder_id}' in parents and name='{file_name}'")
             .execute()["files"][0]
         )
+
+    def file_exists_in_folder(self, folder_id, file_name):
+        try:
+            self.get_file_in_folder(folder_id, file_name)
+            return True
+        except IndexError:
+            return False
 
     def get_file(self, file_id):
         # Query google drive for a file matching the `file_id`

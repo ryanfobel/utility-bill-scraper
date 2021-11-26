@@ -339,7 +339,8 @@ class UtilityAPI:
         start_date = None
         if len(self._history):
             start_date = (
-                arrow.get(self._history.index[-1]).date() + dt.timedelta(days=1)
+                arrow.get(self._history.sort_index().index[-1]).date()
+                + dt.timedelta(days=1)
             ).isoformat()
         pdf_files = self.download_statements(
             start_date=start_date, max_downloads=max_downloads
@@ -362,7 +363,15 @@ class UtilityAPI:
                         utility_folder["id"], "statements"
                     )
                 for local_path in pdf_files:
-                    self._gdh.create_file_in_folder(statements_folder["id"], local_path)
+                    if (
+                        self._gdh.file_exists_in_folder(
+                            statements_folder["id"], os.path.split(local_path)[-1]
+                        )
+                        == False
+                    ):
+                        self._gdh.create_file_in_folder(
+                            statements_folder["id"], local_path
+                        )
             else:
                 # If `data_path` is a local path, copy pdfs to their new location.
                 os.makedirs(
@@ -448,7 +457,7 @@ class UtilityAPI:
             print("Scrape data from %s" % pdf)
             try:
                 result = self.extract_data(pdf)
-                return pd.DataFrame(result, index=[result["Date"]])
+                return pd.DataFrame(result).set_index("Date")
             except Exception:
                 traceback.print_exc()
         return None
