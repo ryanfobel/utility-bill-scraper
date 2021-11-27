@@ -316,7 +316,7 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
 
         result = {
             "Date": date,
-            "Amount Due": amount_due,
+            "Total": amount_due,
             "Off Peak Consumption": consuption["off peak"],
             "Mid Peak Consumption": consuption["mid peak"],
             "On Peak Consumption": consuption["on peak"],
@@ -350,9 +350,7 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
             link = self._driver.find_element_by_link_text("Bills & Payment")
             link.location_once_scrolled_into_view
             link.click()
-
             self._driver.switch_to.frame("iframe-BILLINQ")
-            time.sleep(0.5)
 
             @wait_for_element
             def get_bills_table():
@@ -364,7 +362,7 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
                     [y for y in x.find_elements_by_tag_name("td")]
                     for x in bills_table.find_element_by_tag_name(
                         "tbody"
-                    ).find_elements_by_tag_name("tr")[2:]
+                    ).find_elements_by_tag_name("tr")
                 ]
                 return rows
 
@@ -401,5 +399,8 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
                     shutil.move(filepath, new_filepath)
         finally:
             self._close_driver()
+
+        if self._save_statements:
+            downloaded_files = self._copy_statements_to_data_path(downloaded_files)
 
         return downloaded_files

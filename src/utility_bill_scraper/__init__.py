@@ -334,6 +334,60 @@ class UtilityAPI:
             raise Timeout
         return filepath
 
+    def _copy_statements_to_data_path(self, pdf_files):
+        # If `data_path` is a google drive url, upload pdfs to gdrive.
+        if is_gdrive_path(self._data_path):
+            folder_id = self._data_path.split("/")[-1]
+            try:
+                utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
+            except IndexError:
+                utility_folder = self._gdh.create_subfolder(folder_id, self.name)
+            try:
+                statements_folder = self._gdh.get_file_in_folder(
+                    utility_folder["id"], "statements"
+                )
+            except IndexError:
+                statements_folder = self._gdh.create_subfolder(
+                    utility_folder["id"], "statements"
+                )
+            for local_path in pdf_files:
+                if (
+                    self._gdh.file_exists_in_folder(
+                        statements_folder["id"], os.path.split(local_path)[-1]
+                    )
+                    == False
+                ):
+                    self._gdh.create_file_in_folder(
+                        statements_folder["id"], local_path
+                    )
+        else:
+            # If `data_path` is a local path, copy pdfs to their new location.
+            os.makedirs(
+                os.path.join(self._data_path, self.name, "statements"),
+                exist_ok=True,
+            )
+            for local_path in pdf_files:
+                shutil.move(
+                    local_path,
+                    os.path.join(
+                        self._data_path,
+                        self.name,
+                        "statements",
+                        os.path.basename(local_path),
+                    ),
+                )
+
+            # Update the `pdf_files` list
+            pdf_files = [
+                os.path.join(
+                    self._data_path,
+                    self.name,
+                    "statements",
+                    os.path.basename(local_path),
+                )
+                for local_path in pdf_files
+            ]
+
     def update(self, max_downloads=None):
         # Download any new statements.
         start_date = None
@@ -345,60 +399,6 @@ class UtilityAPI:
         pdf_files = self.download_statements(
             start_date=start_date, max_downloads=max_downloads
         )
-
-        if self._save_statements:
-            # If `data_path` is a google drive url, upload pdfs to gdrive.
-            if is_gdrive_path(self._data_path):
-                folder_id = self._data_path.split("/")[-1]
-                try:
-                    utility_folder = self._gdh.get_file_in_folder(folder_id, self.name)
-                except IndexError:
-                    utility_folder = self._gdh.create_subfolder(folder_id, self.name)
-                try:
-                    statements_folder = self._gdh.get_file_in_folder(
-                        utility_folder["id"], "statements"
-                    )
-                except IndexError:
-                    statements_folder = self._gdh.create_subfolder(
-                        utility_folder["id"], "statements"
-                    )
-                for local_path in pdf_files:
-                    if (
-                        self._gdh.file_exists_in_folder(
-                            statements_folder["id"], os.path.split(local_path)[-1]
-                        )
-                        == False
-                    ):
-                        self._gdh.create_file_in_folder(
-                            statements_folder["id"], local_path
-                        )
-            else:
-                # If `data_path` is a local path, copy pdfs to their new location.
-                os.makedirs(
-                    os.path.join(self._data_path, self.name, "statements"),
-                    exist_ok=True,
-                )
-                for local_path in pdf_files:
-                    shutil.move(
-                        local_path,
-                        os.path.join(
-                            self._data_path,
-                            self.name,
-                            "statements",
-                            os.path.basename(local_path),
-                        ),
-                    )
-
-                # Update the `pdf_files` list
-                pdf_files = [
-                    os.path.join(
-                        self._data_path,
-                        self.name,
-                        "statements",
-                        os.path.basename(local_path),
-                    )
-                    for local_path in pdf_files
-                ]
 
         df_new_rows = pd.DataFrame()
         for pdf in pdf_files:

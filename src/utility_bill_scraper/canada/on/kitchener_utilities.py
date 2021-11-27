@@ -421,6 +421,9 @@ class KitchenerUtilitiesAPI(UtilityAPI):
         finally:
             self._close_driver()
 
+        if self._save_statements:
+            downloaded_files = self._copy_statements_to_data_path(downloaded_files)
+
         return downloaded_files
 
     def get_consumption_history(self, contract):
