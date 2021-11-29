@@ -334,8 +334,22 @@ class UtilityAPI:
             raise Timeout
         return filepath
 
-    def _copy_statements_to_data_path(self, pdf_files):
+    def get_statements(self):
         # If `data_path` is a google drive url, upload pdfs to gdrive.
+        if is_gdrive_path(self._data_path):
+            statements_folder = self._get_gdrive_statements_folder()
+            return self._gdh.get_files_in_folder(statements_folder["id"],
+                                                 "*.pdf"
+            )
+        else:
+            # If `data_path` is a local path
+            return glob.glob(os.path.join(self._data_path,
+                                   self.name,
+                                   "statements",
+                                   "*.pdf")
+            )
+
+    def _get_gdrive_statements_folder(self):
         if is_gdrive_path(self._data_path):
             folder_id = self._data_path.split("/")[-1]
             try:
@@ -350,6 +364,13 @@ class UtilityAPI:
                 statements_folder = self._gdh.create_subfolder(
                     utility_folder["id"], "statements"
                 )
+            return statements_folder
+        return None
+    
+    def _copy_statements_to_data_path(self, pdf_files):
+        # If `data_path` is a google drive url, upload pdfs to gdrive.
+        if is_gdrive_path(self._data_path):
+            statements_folder = self._get_gdrive_statements_folder()
             for local_path in pdf_files:
                 if (
                     self._gdh.file_exists_in_folder(
