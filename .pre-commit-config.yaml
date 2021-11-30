@@ -25,3 +25,15 @@ repos:
         entry: bash -c 'black "$@"; git add -u' --
         language: python
         types: [python]
+      - id: flake8
+        name: Flake8 linting
+        entry: bash -c 'flake8 "$@"'
+        language: python
+        types: [python]
+        args: # arguments to configure flake8
+          # check for Python syntax errors or undefined names
+          - "--count"
+          - "--select=E9,F63,F7,F82"
+          - "--show-source"
+          - "--statistics"
+          - "--max-complexity=10"

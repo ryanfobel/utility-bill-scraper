@@ -17,3 +17,9 @@ dependencies:
   - google-api-python-client
   - geckodriver
   - firefox
+  - pre-commit
+  - autoflake
+  - flake8
+  - black
+  - pytest
+  - pytest-cov

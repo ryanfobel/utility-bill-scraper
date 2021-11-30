@@ -278,7 +278,7 @@ class UtilityAPI:
                 )
             self._driver = webdriver.Chrome(options=options)
         elif self._browser == "Firefox":
-            
+
             options = webdriver.firefox.options.Options()
             options.set_preference("browser.download.folderList", 2)
             options.set_preference("browser.download.dir", self._temp_download_dir)
@@ -289,7 +289,7 @@ class UtilityAPI:
             options.set_preference(
                 "browser.helperApps.neverAsk.saveToDisk",
                 "application/pdf,text/plain,application/text,text/xml,application/xml,"
-                "application/force-download"
+                "application/force-download",
             )
             options.set_preference("pdfjs.disabled", True)
             # disable the built-in PDF viewer
@@ -302,11 +302,13 @@ class UtilityAPI:
             self._driver = webdriver.Firefox(options=options)
 
     def history(self, resolution="monthly"):
+
         if resolution not in self._resolutions_available:
-            raise RuntimeError("resolution must be one of: " +
-                f"{ ', '.join(supported_resolutions) }."
+            raise RuntimeError(
+                "resolution must be one of: "
+                + f"{ ', '.join(self._resolutions_available) }."
             )
-        
+
         if resolution == "monthly":
             return self._monthly_history
         elif resolution == "hourly":
@@ -349,15 +351,11 @@ class UtilityAPI:
         # If `data_path` is a google drive url, upload pdfs to gdrive.
         if is_gdrive_path(self._data_path):
             statements_folder = self._get_gdrive_statements_folder()
-            return self._gdh.get_files_in_folder(statements_folder["id"],
-                                                 "*.pdf"
-            )
+            return self._gdh.get_files_in_folder(statements_folder["id"], "*.pdf")
         else:
             # If `data_path` is a local path
-            return glob.glob(os.path.join(self._data_path,
-                                   self.name,
-                                   "statements",
-                                   "*.pdf")
+            return glob.glob(
+                os.path.join(self._data_path, self.name, "statements", "*.pdf")
             )
 
     def _get_gdrive_statements_folder(self):
@@ -377,7 +375,7 @@ class UtilityAPI:
                 )
             return statements_folder
         return None
-    
+
     def _copy_statements_to_data_path(self, pdf_files):
         # If `data_path` is a google drive url, upload pdfs to gdrive.
         if is_gdrive_path(self._data_path):
@@ -389,9 +387,7 @@ class UtilityAPI:
                     )
                     == False
                 ):
-                    self._gdh.create_file_in_folder(
-                        statements_folder["id"], local_path
-                    )
+                    self._gdh.create_file_in_folder(statements_folder["id"], local_path)
         else:
             # If `data_path` is a local path, copy pdfs to their new location.
             os.makedirs(
@@ -455,10 +451,10 @@ class UtilityAPI:
         self._monthly_history.sort_index(inplace=True)
         self._update_history()
         return df_new_rows
-        
+
     def _update_history(self):
         # Update history
-        
+
         # If `data_path` is a google drive folder, upload the monthly data file.
         if is_gdrive_path(self._data_path):
             folder_id = self._data_path.split("/")[-1]
