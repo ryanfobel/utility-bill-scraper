@@ -49,12 +49,12 @@ pip install utility-bill-scraper
 
 ## Data storage
 
-All data is stored in a file located at `$DATA_PATH/$UTILITY_NAME/data.csv`. The path to this file can be set as input argument when initializing an API object via the `data_path` argument.
+All data is stored in a file located at `$DATA_PATH/$UTILITY_NAME/monthly.csv`. The path to this file can be set as input argument when initializing an API object via the `data_path` argument.
 
 ```
 └───data
     └───Kitchener Utilities
-        └───data.csv
+        └───monthly.csv
         └───statements
             │───2021-10-18 - Kitchener Utilities - $102.30.pdf
             ...
@@ -68,13 +68,13 @@ All data is stored in a file located at `$DATA_PATH/$UTILITY_NAME/data.csv`. The
 ```python
 import utility_bill_scraper.canada.on.kitchener_utilities as ku
 
-ku_api = ku.KitchenerUtilitiesAPI(username='username', password='password')
+api = ku.KitchenerUtilitiesAPI(username='username', password='password')
 
 # Get new statements.
-updates = ku_api.update()
+updates = api.update()
 if updates is not None:
     print(f"{ len(updates) } statements_downloaded")
-ku_api.history().tail()
+api.history("monthly").tail()
 ```
 ![history tail](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/history_tail.png)
 
@@ -86,10 +86,10 @@ ku_api.history().tail()
 ```python
 import matplotlib.pyplot as plt
 
-df_ku = ku_api.history()
+df = ku_api.history("monthly")
 
 plt.figure()
-plt.bar(df_ku.index, df_ku["Gas Consumption"], width=0.9, alpha=0.5)
+plt.bar(df.index, df["Gas Consumption"], width=0.9, alpha=0.5)
 plt.xticks(rotation=90)
 plt.title("Monthly Gas Consumption")
 plt.ylabel("m$^3$")
@@ -102,7 +102,7 @@ plt.ylabel("m$^3$")
 ```python
 from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
 
-df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
+df["kgCO2"] = df["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
 ```
 
 ### Plot Annual CO<sub>2</sub> emissions
@@ -110,12 +110,12 @@ df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
 ```python
 from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
 
-df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
-df_ku["year"] = [int(x[0:4]) for x in df_ku.index]
-df_ku["month"] = [int(x[5:7]) for x in df_ku.index]
+df["kgCO2"] = df["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
+df["year"] = [int(x[0:4]) for x in df.index]
+df["month"] = [int(x[5:7]) for x in df.index]
 
 plt.figure()
-df_ku.groupby("year").sum()["Gas Consumption"].plot.bar(width=bin_width, alpha=alpha)
+df.groupby("year").sum()["Gas Consumption"].plot.bar(width=bin_width, alpha=alpha)
 plt.ylabel("m$^3$")
 ylim = plt.ylim()
 ax = plt.gca()
@@ -125,7 +125,7 @@ plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Annual CO$_2$e emissions from natural gas")
 ```
 
-![annual co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/annual_co2_emissions.png)
+![annual co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/annual_co2_emissions_natural_gas.png)
 
 ## Command line utilities
 
@@ -140,7 +140,7 @@ Update and export your utility data from the command line.
 ### Export data
 
 ```sh
-> python -m utility_bill_scraper.bin.ubs --utilty-name "Kitchener Utilities" export --output data.csv
+> python -m utility_bill_scraper.bin.ubs --utilty-name "Kitchener Utilities" export --output monthly.csv
 ```
 
 ### Options
