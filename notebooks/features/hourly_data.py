@@ -26,38 +26,41 @@ facecolor = "white"
 
 # %matplotlib inline
 
-import datetime as dt
 import os
-import shutil
 
 import matplotlib.pyplot as plt
-import numpy as np
 from dotenv import load_dotenv
 from matplotlib import rcParams
 from cycler import cycler
 
 import utility_bill_scraper.canada.on.kitchener_wilmot_hydro as kwh
 
-# Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.    
+# Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.
 def scale_rgb(colormap):
-    return [(r / 255., g / 255., b / 255.) for r, g, b in colormap]
+    return [(r / 255.0, g / 255.0, b / 255.0) for r, g, b in colormap]
 
-light = scale_rgb([
-    (136, 189, 230),
-    (251, 178, 88),
-    (144, 205, 151),
-    (246, 170, 201),
-    (191, 165, 84),
-    (188, 153, 199),
-    (237, 221, 70),
-    (240, 126, 110),
-    (140, 140, 140)])
 
-rcParams.update({
-    'figure.figsize': (12, 6),
-    'font.size': 12,
-    'axes.prop_cycle': cycler('color', light)
-})
+light = scale_rgb(
+    [
+        (136, 189, 230),
+        (251, 178, 88),
+        (144, 205, 151),
+        (246, 170, 201),
+        (191, 165, 84),
+        (188, 153, 199),
+        (237, 221, 70),
+        (240, 126, 110),
+        (140, 140, 140),
+    ]
+)
+
+rcParams.update(
+    {
+        "figure.figsize": (12, 6),
+        "font.size": 12,
+        "axes.prop_cycle": cycler("color", light),
+    }
+)
 
 # Load the `.env` file into the environment if it exists
 load_dotenv()
@@ -106,12 +109,13 @@ if api:
     # Plot hourly use over the past week
     plt.figure()
     days = 7
-    df.iloc[-24*days:]["kWh"].plot.bar(width=1)
+    df.iloc[-24 * days :]["kWh"].plot.bar(width=1)
     plt.title("Hourly use over past week")
     plt.ylabel("kWh")
     plt.xticks(rotation=90)
     ticks, labels = plt.xticks()
     import math
+
     n = math.floor(len(ticks) / days)
     plt.xticks(ticks[1::n], [label.get_text().split(" ")[0] for label in labels[1::n]])
 

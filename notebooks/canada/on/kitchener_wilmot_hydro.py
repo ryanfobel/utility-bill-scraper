@@ -48,26 +48,32 @@ from cycler import cycler
 
 import utility_bill_scraper.canada.on.kitchener_wilmot_hydro as kwh
 
-# Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.    
+# Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.
 def scale_rgb(colormap):
-    return [(r / 255., g / 255., b / 255.) for r, g, b in colormap]
+    return [(r / 255.0, g / 255.0, b / 255.0) for r, g, b in colormap]
 
-light = scale_rgb([
-    (136, 189, 230),
-    (251, 178, 88),
-    (144, 205, 151),
-    (246, 170, 201),
-    (191, 165, 84),
-    (188, 153, 199),
-    (237, 221, 70),
-    (240, 126, 110),
-    (140, 140, 140)])
 
-rcParams.update({
-    'figure.figsize': (12, 6),
-    'font.size': 12,
-    'axes.prop_cycle': cycler('color', light)
-})
+light = scale_rgb(
+    [
+        (136, 189, 230),
+        (251, 178, 88),
+        (144, 205, 151),
+        (246, 170, 201),
+        (191, 165, 84),
+        (188, 153, 199),
+        (237, 221, 70),
+        (240, 126, 110),
+        (140, 140, 140),
+    ]
+)
+
+rcParams.update(
+    {
+        "figure.figsize": (12, 6),
+        "font.size": 12,
+        "axes.prop_cycle": cycler("color", light),
+    }
+)
 
 # Load the `.env` file into the environment if it exists
 load_dotenv()
@@ -110,8 +116,8 @@ api.history("monthly").tail()
 df = api.history("monthly")
 
 plt.figure()
-df[['On Peak Consumption', 'Mid Peak Consumption', 'Off Peak Consumption']].plot.bar(
-    stacked=True, width=bin_width, color=['#F07E6E', '#EDDD46', '#90CD97']
+df[["On Peak Consumption", "Mid Peak Consumption", "Off Peak Consumption"]].plot.bar(
+    stacked=True, width=bin_width, color=["#F07E6E", "#EDDD46", "#90CD97"]
 )
 plt.ylim((0, None))
 plt.title("Monthly Electricity Consumption")
@@ -151,10 +157,7 @@ plt.savefig(
     facecolor=facecolor,
 )
 
-print(
-    "annual electricity usage: %.1f kWh"
-    % (df["Total Consumption"].iloc[-12:].sum())
-)
+print("annual electricity usage: %.1f kWh" % (df["Total Consumption"].iloc[-12:].sum()))
 print("annual electricity cost: $%.2f" % (df["Total"].iloc[-12:].sum()))
 print(
     "annual CO2 emissions from electricity: %.2f kg"

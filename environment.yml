@@ -21,5 +21,6 @@ dependencies:
   - autoflake
   - flake8
   - black
+  - black[jupyter]
   - pytest
   - pytest-cov
