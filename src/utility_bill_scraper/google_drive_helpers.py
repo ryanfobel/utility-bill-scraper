@@ -34,12 +34,13 @@ class GoogleDriveHelper:
     def get_files_in_folder(self, folder_id, pattern="*"):
         # Query the shared google folder for files that match `pattern`
         return [
-            file for file in self._service.files()
-                .list(q=f"'{folder_id}' in parents")
-                .execute()["files"]
+            file
+            for file in self._service.files()
+            .list(q=f"'{folder_id}' in parents")
+            .execute()["files"]
             if fnmatch.fnmatch(file["name"], pattern)
         ]
-    
+
     def file_exists_in_folder(self, folder_id, file_name):
         try:
             self.get_file_in_folder(folder_id, file_name)

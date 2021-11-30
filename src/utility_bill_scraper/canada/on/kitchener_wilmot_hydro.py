@@ -19,11 +19,12 @@ from utility_bill_scraper import (
     format_fields,
     pdf_to_html,
     wait_for_element,
-    is_number
+    is_number,
 )
 
 
-re_consumption = ("((?P<start_date>[a-zA-Z]+\s+\d+"
+re_consumption = (
+    "((?P<start_date>[a-zA-Z]+\s+\d+"
     ",\s+[\d]{4})\s+to\s+(?P<end_date>[a-zA-Z]+"
     "\s+\d+,\s+[\d]{4}).+)*Off-Peak:\s+"
     "(?P<off_peak_use>[\d]+\.[\d]+)\s+kWh\s+@\s+"
@@ -43,32 +44,32 @@ def get_consumption(soup):
     def _get_consumption(soup):
         def find_new_charges(tag):
             return tag.name == u"span" and re.search(
-                re_consumption,
-                tag.getText(),
-                re.DOTALL
+                re_consumption, tag.getText(), re.DOTALL
             )
+
         tags = soup.find_all(find_new_charges)
         df = pd.DataFrame()
         for tag in tags:
-            match = re.search(
-                re_consumption,
-                tag.getText(),
-                re.DOTALL
-            )
+            match = re.search(re_consumption, tag.getText(), re.DOTALL)
             row_data = match.groupdict()
-            row_data = {k: arrow.get(v, "MMMM DD, YYYY").date().isoformat()
-                        if v and k.endswith('date') else v for k, v in row_data.items()
+            row_data = {
+                k: arrow.get(v, "MMMM DD, YYYY").date().isoformat()
+                if v and k.endswith("date")
+                else v
+                for k, v in row_data.items()
             }
-            row_data = {k: float(v) if v and is_number(v) else v for k, v in row_data.items()}
+            row_data = {
+                k: float(v) if v and is_number(v) else v for k, v in row_data.items()
+            }
             df = df.append(row_data, ignore_index=True)
-    
-        return {k.replace("_use", "").replace("_", " "):v
-            for k, v in df.sum()[[
-                "off_peak_use",
-                "mid_peak_use",
-                "on_peak_use"
-        ]].to_dict().items()}
-    
+
+        return {
+            k.replace("_use", "").replace("_", " "): v
+            for k, v in df.sum()[["off_peak_use", "mid_peak_use", "on_peak_use"]]
+            .to_dict()
+            .items()
+        }
+
     def _get_consumption_pre_2021_10(soup):
         def find_kWh(tag):
             return tag.name == u"span" and (
@@ -92,7 +93,7 @@ def get_consumption(soup):
                 data["on peak"] += float(x[: x.find("kWh On Peak")])
 
         return data
-    
+
     try:
         return _get_consumption(soup)
     except:
@@ -103,31 +104,31 @@ def get_rates(soup):
     def _get_rates(soup):
         def find_new_charges(tag):
             return tag.name == u"span" and re.search(
-                re_consumption,
-                tag.getText(),
-                re.DOTALL
+                re_consumption, tag.getText(), re.DOTALL
             )
+
         tags = soup.find_all(find_new_charges)
         df = pd.DataFrame()
         for tag in tags:
-            match = re.search(
-                re_consumption,
-                tag.getText(),
-                re.DOTALL
-            )
+            match = re.search(re_consumption, tag.getText(), re.DOTALL)
             row_data = match.groupdict()
-            row_data = {k: arrow.get(v, "MMMM DD, YYYY").date().isoformat()
-                        if v and k.endswith('date') else v for k, v in row_data.items()
+            row_data = {
+                k: arrow.get(v, "MMMM DD, YYYY").date().isoformat()
+                if v and k.endswith("date")
+                else v
+                for k, v in row_data.items()
             }
-            row_data = {k: float(v) if v and is_number(v) else v for k, v in row_data.items()}
+            row_data = {
+                k: float(v) if v and is_number(v) else v for k, v in row_data.items()
+            }
             df = df.append(row_data, ignore_index=True)
-    
-        return {k.replace("_rate", "").replace("_", " "):v
-            for k, v in df.iloc[0][[
-                "off_peak_rate",
-                "mid_peak_rate",
-                "on_peak_rate"
-        ]].to_dict().items()}
+
+        return {
+            k.replace("_rate", "").replace("_", " "): v
+            for k, v in df.iloc[0][["off_peak_rate", "mid_peak_rate", "on_peak_rate"]]
+            .to_dict()
+            .items()
+        }
 
     def _get_rates_pre_2021_10(soup):
         def find_kWhOffPeak(tag):
@@ -158,14 +159,13 @@ def get_rates(soup):
 def get_billing_date(soup):
     def _get_date(soup):
         try:
+
             def find_billing(tag):
                 return tag.name == u"span" and tag.decode().find("Invoice Date") >= 0
 
             match = re.search(
                 "([A-Z]+)\s+(\d+),\s+(\d+)",
-                format_fields(
-                    soup.find_all(find_billing)[0].next_sibling.contents
-                )[0],
+                format_fields(soup.find_all(find_billing)[0].next_sibling.contents)[0],
             )
             return match.groups()
         except:
@@ -191,16 +191,18 @@ def get_billing_date(soup):
 def get_amount_due(soup):
     def _get_amount_due(soup):
         def find_billing(tag):
-            return (tag.name == u"div" and
-                tag.decode().find("Amount Due") >= 0 and
-                tag.decode().find("Total Amount Due") == -1 and
-                re.search("[\d]+\.[\d]+", tag.next_sibling.decode())
+            return (
+                tag.name == u"div"
+                and tag.decode().find("Amount Due") >= 0
+                and tag.decode().find("Total Amount Due") == -1
+                and re.search("[\d]+\.[\d]+", tag.next_sibling.decode())
             )
-        match = re.search("([\d]+\.[\d]+)",
-            soup.find_all(find_billing)[0].next_sibling.decode()
+
+        match = re.search(
+            "([\d]+\.[\d]+)", soup.find_all(find_billing)[0].next_sibling.decode()
         )
         return float(match.groups()[0])
-        
+
     def _get_amount_due_pre_2021_10(soup):
         def find_new_charges(tag):
             return tag.name == u"div" and tag.decode().find("New Charges") >= 0
@@ -224,15 +226,15 @@ def get_amount_due(soup):
             match = re.search("top:(?P<top>\d+)px", tag.decode())
             distance.append(abs(float(match.groups()[0]) - top))
 
-        return format_fields(
-            tags[np.nonzero(distance == np.min(distance))[0][0]].span
-        )[0]
+        return format_fields(tags[np.nonzero(distance == np.min(distance))[0][0]].span)[
+            0
+        ]
 
     try:
         amount_due = _get_amount_due(soup)
     except:
         amount_due = _get_amount_due_pre_2021_10(soup)
-        
+
     index = str(amount_due).find("CR")
     if index >= 0:
         amount_due = (-1) * float(amount_due[:index])
@@ -384,7 +386,7 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
                     os.remove(f)
 
                 # Save the reformatted data
-                df.to_csv(new_filepath)            
+                df.to_csv(new_filepath)
         finally:
             self._close_driver()
 
