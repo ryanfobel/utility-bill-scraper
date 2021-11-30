@@ -1,4 +1,4 @@
-name: Scheduled update
+name: Update Kitchener-Wilmot Hydro
 
 on:
   schedule:
@@ -27,26 +27,26 @@ jobs:
     - name: Poetry install
       run: |
         poetry install
-    - name: Update Kitchener Utilities
+    - name: Update Kitchener-Wilmot Hydro
       env:
-        USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
-        PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
+        USER: ${{ secrets.KWHYDRO_USER }}
+        PASSWORD: ${{ secrets.KWHYDRO_PASSWORD }}
         DATA_PATH: ${{ secrets.DATA_PATH }}
         GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
       run: |
-        poetry run python -m utility_bill_scraper.bin.ubs --utility-name "Kitchener Utilities" update > ubs.log
+        poetry run ubs --utility-name "Kitchener-Wilmot Hydro" update > ubs.log
         echo "DOWNLOADED="`cat ubs.log | grep Downloaded | sed 's/^Downloaded \(.*\) new statements$/\1/'` > DOWNLOADED
         cat DOWNLOADED
         cat DOWNLOADED > $GITHUB_ENV
     - name: Publish notebooks to html
       if: env.DOWNLOADED > 0
       env:
-        KITCHENER_UTILITIES_USER: ${{ secrets.KITCHENER_UTILITIES_USER }}
-        KITCHENER_UTILITIES_PASSWORD: ${{ secrets.KITCHENER_UTILITIES_PASSWORD }}
+        KWHYDRO_USER: ${{ secrets.KWHYDRO_USER }}
+        KWHYDRO_PASSWORD: ${{ secrets.KWHYDRO_PASSWORD }}
         DATA_PATH: ${{ secrets.DATA_PATH }}
         GOOGLE_SA_CREDENTIALS: ${{ secrets.GOOGLE_SA_CREDENTIALS }}
       run: |
-        poetry run jupyter nbconvert --execute --to html notebooks/canada/on/kitchener_utilities.ipynb
+        poetry run jupyter nbconvert --execute --to html notebooks/canada/on/kitchener_wilmot_hydro.ipynb
     - name: Send email
       if: env.DOWNLOADED > 0
       uses: dawidd6/action-send-mail@v3.5.0
@@ -55,8 +55,8 @@ jobs:
         server_port: 465
         username: ryan@fobel.net
         password: ${{ secrets.GMAIL_APP_PASSWORD }}
-        subject: ${{ env.DOWNLOADED }} new Kitchener Utilities statement(s)
+        subject: ${{ env.DOWNLOADED }} new Kitchener-Wilmot Hydro statement(s)
         to: Ryan Fobel <ryan@fobel.net>
         from: Ryan Fobel <ryan@fobel.net>
         body: ${{ env.DOWNLOADED }} new statement(s) downloaded.
-        attachments: notebooks/canada/on/kitchener_utilities.html
+        attachments: notebooks/canada/on/kitchener_wilmot_hydro.html
