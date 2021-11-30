@@ -6,116 +6,133 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.3.3
+#       jupytext_version: 1.13.2
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 # ---
 
+# [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_wilmot_hydro.ipynb)
+#
 # # Introduction
 #
-# This notebook demonstrates scraping of data from [Kitchener-Wilmot Hydro](https://www.kwhydro.on.ca) electricity bills.
+# This notebook demonstrates scraping of data from [Kitchener-Wilmot Hydro](https://www.kwhydro.on.ca) electricity bills. You can launch an interactive version of this page by clicking on the badge at the top of the page.
+#
+# ## Setup
+#
+# Fill in your `username` and `password` below, then run all of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `monthly.csv` and the `*.pdf` statements).This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`.
 
 # +
-# %load_ext autoreload
-# %autoreload 2
+username = ""
+password = ""
 
-import os
-
-# Add parent directory to python path.
-import sys
-import time
-from glob import glob
-
-import arrow
-import matplotlib.pyplot as plt
-import pandas as pd
-from IPython import display
-from matplotlib import rcParams
-
-sys.path.insert(0, "..")
-import utility_bill_scraper.kitchener_wilmot_hydro as kwh
-from utility_bill_scraper import convert_data_to_df, process_pdf
+# Plotting preferences
+bin_width = 0.9
+alpha = 0.5
+transparent = False
+bbox_inches = "tight"
+facecolor = "white"
 
 # %matplotlib inline
 
-rcParams.update({"figure.figsize": (12, 6)})
+import datetime as dt
+import os
+import shutil
 
-data_directory = os.path.abspath(os.path.join("..", "data"))
+import matplotlib.pyplot as plt
+import numpy as np
+from dotenv import load_dotenv
+from matplotlib import rcParams
+from cycler import cycler
+
+import utility_bill_scraper.canada.on.kitchener_wilmot_hydro as kwh
+
+# Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.
+def scale_rgb(colormap):
+    return [(r / 255.0, g / 255.0, b / 255.0) for r, g, b in colormap]
+
+
+light = scale_rgb(
+    [
+        (136, 189, 230),
+        (251, 178, 88),
+        (144, 205, 151),
+        (246, 170, 201),
+        (191, 165, 84),
+        (188, 153, 199),
+        (237, 221, 70),
+        (240, 126, 110),
+        (140, 140, 140),
+    ]
+)
+
+rcParams.update(
+    {
+        "figure.figsize": (12, 6),
+        "font.size": 12,
+        "axes.prop_cycle": cycler("color", light),
+    }
+)
+
+# Load the `.env` file into the environment if it exists
+load_dotenv()
+
+# If we haven't set a username/password, try getting them from
+# environment variables.
+if not username:
+    username = os.getenv("KWHYDRO_USER")
+if not password:
+    password = os.getenv("KWHYDRO_PASSWORD")
+
+# Set the path where data is saved.
+data_path = os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data"))
+
+# Get google service account credentials (if the environment variable is set).
+google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
+
+# Uncomment the following 2 lines for development
+# %load_ext autoreload
+# %autoreload 2
+
+api = kwh.KitchenerWilmotHydroAPI(
+    username,
+    password,
+    data_path,
+    google_sa_credentials=google_sa_credentials,
+)
+
+# Get up to 24 statements (the most recent).
+updates = api.update(24)
+if updates is not None:
+    print(f"{ len(updates) } statements_downloaded")
+api.history("monthly").tail()
+# -
+
+
+# ## Monthly electricity consumption history
 
 # +
-kwh_api = None
+df = api.history("monthly")
 
-try:
-    # Create a Kitchener-Wilmot Hydro API object with your user name and password
-    from credentials import password, user
-
-    kwh_api = kwh.KitchenerWilmotHydroAPI(
-        user[kwh.get_name()], password[kwh.get_name()], data_directory
-    )
-
-    print("Downloading invoices from %s..." % kwh_api.name)
-    start_time = time.time()
-    invoices = kwh_api.download_invoices()
-    print("kwh_api.download_invoices() took %d seconds" % (time.time() - start_time))
-    display(invoices.head())
-    bills_list = glob(os.path.join(kwh_api._invoice_directory, "*.pdf"))
-except ModuleNotFoundError:
-    print("Using test data...")
-    bills_list = glob(
-        os.path.join(os.path.join("..", "tests", kwh.get_name()), "*.pdf")
-    )
-
-# +
-# Load csv with previously cached data if it exists
-df_kwh = pd.DataFrame()
-cached_invoice_dates = []
-filepath = os.path.join(data_directory, kwh.get_name(), "data.csv")
-
-if os.path.exists(filepath):
-    df_kwh = pd.read_csv(filepath).set_index("Date")
-    cached_invoice_dates = list(df_kwh.index)
-
-# Scrape data from pdf files
-data = []
-
-for pdf_file in bills_list:
-    date = os.path.splitext(os.path.basename(pdf_file))[0].split(" - ")[0]
-
-    # If we've already scraped this pdf, continue
-    if date not in cached_invoice_dates:
-        print("Scrape data from %s" % pdf_file)
-        result = process_pdf(pdf_file, rename=True)
-        if result:
-            data.append(result)
-
-# Convert the list of dictionaries into a dictionary of data frames (one for
-# each utility in the dataset).
-df = convert_data_to_df(data)
-
-# If there's any new data, append it to the cached data
-if df:
-    df_kwh = df_kwh.append(df[kwh.get_name()])
-
-    # If the data directory doesn't exist yet, create it
-    if not os.path.isdir(os.path.join(data_directory, kwh.get_name())):
-        os.makedirs(os.path.join(data_directory, kwh.get_name()))
-
-    # Update csv file
-    df_kwh.to_csv(filepath)
-
-# +
 plt.figure()
-df_kwh["Off Peak Consumption"].plot()
-df_kwh["Mid Peak Consumption"].plot()
-df_kwh["On Peak Consumption"].plot()
-df_kwh["Total Consumption"].plot()
+df[["On Peak Consumption", "Mid Peak Consumption", "Off Peak Consumption"]].plot.bar(
+    stacked=True, width=bin_width, color=["#F07E6E", "#EDDD46", "#90CD97"]
+)
 plt.ylim((0, None))
 plt.title("Monthly Electricity Consumption")
 plt.ylabel("kWh")
 plt.legend(["Off Peak", "Mid Peak", "On Peak", "Total"])
+plt.savefig(
+    os.path.join("images", "monthly_electricity_consumption.png"),
+    bbox_inches=bbox_inches,
+    transparent=transparent,
+    facecolor=facecolor,
+)
+# -
+# ## Annual CO2 emissions
 
+# +
 # Carbon intensity of electricity generation in Ontario (40-77 g CO2 / kWh)
 # * 40 g / kWh (https://www.neb-one.gc.ca/nrg/sttstc/lctrct/rprt/
 #               2017cndrnwblpwr/ghgmssn-eng.html)
@@ -124,30 +141,96 @@ plt.legend(["Off Peak", "Mid Peak", "On Peak", "Total"])
 # * This is likely to go up when Pickering is closed
 #   https://www.opg.com/darlington-refurbishment/Documents/IntrinsikReport_GHG_OntarioPower.pdf
 
-cabron_intensity_kgCO2_per_kwh = 0.077
-print(
-    "annual electricity usage: %.1f kWh"
-    % (df_kwh["Total Consumption"].iloc[-12:].sum())
+carbon_intensity_kgCO2_per_kwh = 0.077
+
+plt.figure()
+df["kgCO2"] = df["Total Consumption"] * carbon_intensity_kgCO2_per_kwh
+df["year"] = [int(x[0:4]) for x in df.index]
+df["month"] = [int(x[5:7]) for x in df.index]
+(df.groupby("year").sum()["kgCO2"] / 1e3).plot.bar(width=bin_width)
+plt.title("Annual CO$_2$e emissions from electricity")
+plt.ylabel("tCO$_2$e")
+plt.savefig(
+    os.path.join("images", "annual_co2_emissions_electricity.png"),
+    bbox_inches=bbox_inches,
+    transparent=transparent,
+    facecolor=facecolor,
 )
-print("annual electricity cost: $%.2f" % (df_kwh["Amount Due"].iloc[-12:].sum()))
+
+print("annual electricity usage: %.1f kWh" % (df["Total Consumption"].iloc[-12:].sum()))
+print("annual electricity cost: $%.2f" % (df["Total"].iloc[-12:].sum()))
 print(
     "annual CO2 emissions from electricity: %.2f kg"
-    % (df_kwh["Total Consumption"].iloc[-12:].sum() * cabron_intensity_kgCO2_per_kwh)
+    % (df["Total Consumption"].iloc[-12:].sum() * carbon_intensity_kgCO2_per_kwh)
 )
 # -
-if kwh_api:
-    kwh_api.download_hourly_data()
 
-    # Combine all data into a single dataframe
-    files = glob(os.path.join(kwh_api._hourly_data_directory, "*.csv"))
+# ## CO2 emissions vs previous year
 
-    df = pd.read_csv(files[0], index_col=0)
-    for f in files[1:]:
-        df = df.append(pd.read_csv(f, index_col=0))
+# +
+n_years_history = 1
 
-    # Plot daily use
-    df["Date"] = [arrow.get(x).date().isoformat() for x in df.index]
-    df_base = df.groupby("Date").sum()
-    df_base["kWh"].plot()
-    plt.title("Daily use")
-    plt.ylabel("kWh")
+plt.figure()
+for year, df_year in df.groupby("year"):
+    if year >= dt.datetime.utcnow().year - n_years_history:
+        df_year.sort_values("month", inplace=True)
+        plt.bar(
+            df_year["month"],
+            df_year["Total Consumption"],
+            label=year,
+            width=bin_width,
+            alpha=alpha,
+        )
+plt.legend()
+plt.ylabel("m$^3$")
+plt.xlabel("Month")
+ylim = plt.ylim()
+ax = plt.gca()
+ax2 = ax.twinx()
+plt.ylabel("tCO$_2$e")
+plt.title("Monthly CO$_2$e emissions from electricity")
+plt.savefig(
+    os.path.join("images", "monthly_co2_emissions_electricity.png"),
+    bbox_inches=bbox_inches,
+    transparent=transparent,
+    facecolor=facecolor,
+)
+
+plt.figure()
+for year, df_year in df.groupby("year"):
+    if year >= dt.datetime.utcnow().year - n_years_history:
+        df_year.sort_values("month", inplace=True)
+        plt.bar(
+            df_year["month"],
+            np.cumsum(df_year["Total Consumption"]),
+            label=year,
+            width=bin_width,
+            alpha=alpha,
+        )
+plt.legend()
+plt.ylabel("m$^3$")
+plt.xlabel("Month")
+ylim = plt.ylim()
+ax = plt.gca()
+ax2 = ax.twinx()
+plt.ylabel("tCO$_2$e")
+plt.title("Cumulative CO$_2$e emissions from electricity per year")
+plt.savefig(
+    os.path.join("images", "cumulative_co2_emissions_electricity.png"),
+    bbox_inches=bbox_inches,
+    transparent=transparent,
+    facecolor=facecolor,
+)
+# -
+
+# ## Save data as `downloads.zip` or print link to gdrive folder
+#
+# Generate a zip file with all of the data. `Right-click` on the file `downloads.zip` in the file browser on the left (it'll be in the `notebooks` folder). If `DATA_PATH` is a google drive link, print the url.
+
+# +
+from utility_bill_scraper import is_gdrive_path
+
+if is_gdrive_path(data_path):
+    print(data_path)
+else:
+    print(shutil.make_archive(os.path.join(".", "download"), "zip", data_path))

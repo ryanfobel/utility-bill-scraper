@@ -1,183 +1,274 @@
-import datetime
 import glob
+import datetime
 import os
 import random
 import re
+import shutil
 import tempfile
 import time
 
 import arrow
 import numpy as np
 import pandas as pd
-from selenium import webdriver
+from bs4 import BeautifulSoup
 from selenium.common.exceptions import NoSuchElementException
 
-from utility_bill_scraper import format_fields
+from utility_bill_scraper import (
+    Timeout,
+    UtilityAPI,
+    format_fields,
+    pdf_to_html,
+    wait_for_element,
+    is_number,
+)
+
+
+re_consumption = (
+    "((?P<start_date>[a-zA-Z]+\s+\d+"
+    ",\s+[\d]{4})\s+to\s+(?P<end_date>[a-zA-Z]+"
+    "\s+\d+,\s+[\d]{4}).+)*Off-Peak:\s+"
+    "(?P<off_peak_use>[\d]+\.[\d]+)\s+kWh\s+@\s+"
+    "\$(?P<off_peak_rate>[\d]+\.[\d]+).+Mid-Peak:\s+"
+    "(?P<mid_peak_use>[\d]+\.[\d]+)\s+kWh\s+@\s+"
+    "\$(?P<mid_peak_rate>[\d]+\.[\d]+).+On-Peak:\s+"
+    "(?P<on_peak_use>[\d]+\.[\d]+)\s+kWh\s+@\s+"
+    "\$(?P<on_peak_rate>[\d]+\.[\d]+).+"
+)
 
 
 def get_name():
     return "Kitchener-Wilmot Hydro"
 
 
-def get_electricity_consumption(soup):
-    def find_kWh(tag):
-        return tag.name == u"span" and (
-            tag.decode().find("kWh Off Peak") >= 0
-            or tag.decode().find("kWh Mid Peak") >= 0
-            or tag.decode().find("kWh On Peak") >= 0
-        )
+def get_consumption(soup):
+    def _get_consumption(soup):
+        def find_new_charges(tag):
+            return tag.name == u"span" and re.search(
+                re_consumption, tag.getText(), re.DOTALL
+            )
 
-    fields = []
-    for x in soup.find_all(find_kWh):
-        fields += format_fields(x)
+        tags = soup.find_all(find_new_charges)
+        df = pd.DataFrame()
+        for tag in tags:
+            match = re.search(re_consumption, tag.getText(), re.DOTALL)
+            row_data = match.groupdict()
+            row_data = {
+                k: arrow.get(v, "MMMM DD, YYYY").date().isoformat()
+                if v and k.endswith("date")
+                else v
+                for k, v in row_data.items()
+            }
+            row_data = {
+                k: float(v) if v and is_number(v) else v for k, v in row_data.items()
+            }
+            df = df.append(row_data, ignore_index=True)
 
-    data = {"off peak": 0, "mid peak": 0, "on peak": 0}
+        return {
+            k.replace("_use", "").replace("_", " "): v
+            for k, v in df.sum()[["off_peak_use", "mid_peak_use", "on_peak_use"]]
+            .to_dict()
+            .items()
+        }
 
-    for x in fields:
-        if x.find("kWh Off Peak") > 0:
-            data["off peak"] += float(x[: x.find("kWh Off Peak")])
-        elif x.find("kWh Mid Peak") > 0:
-            data["mid peak"] += float(x[: x.find("kWh Mid Peak")])
-        elif x.find("kWh On Peak") > 0:
-            data["on peak"] += float(x[: x.find("kWh On Peak")])
+    def _get_consumption_pre_2021_10(soup):
+        def find_kWh(tag):
+            return tag.name == u"span" and (
+                tag.decode().find("kWh Off Peak") >= 0
+                or tag.decode().find("kWh Mid Peak") >= 0
+                or tag.decode().find("kWh On Peak") >= 0
+            )
 
-    return data
+        fields = []
+        for x in soup.find_all(find_kWh):
+            fields += format_fields(x)
+
+        data = {"off peak": 0, "mid peak": 0, "on peak": 0}
+
+        for x in fields:
+            if x.find("kWh Off Peak") > 0:
+                data["off peak"] += float(x[: x.find("kWh Off Peak")])
+            elif x.find("kWh Mid Peak") > 0:
+                data["mid peak"] += float(x[: x.find("kWh Mid Peak")])
+            elif x.find("kWh On Peak") > 0:
+                data["on peak"] += float(x[: x.find("kWh On Peak")])
+
+        return data
+
+    try:
+        return _get_consumption(soup)
+    except:
+        return _get_consumption_pre_2021_10(soup)
+
+
+def get_rates(soup):
+    def _get_rates(soup):
+        def find_new_charges(tag):
+            return tag.name == u"span" and re.search(
+                re_consumption, tag.getText(), re.DOTALL
+            )
+
+        tags = soup.find_all(find_new_charges)
+        df = pd.DataFrame()
+        for tag in tags:
+            match = re.search(re_consumption, tag.getText(), re.DOTALL)
+            row_data = match.groupdict()
+            row_data = {
+                k: arrow.get(v, "MMMM DD, YYYY").date().isoformat()
+                if v and k.endswith("date")
+                else v
+                for k, v in row_data.items()
+            }
+            row_data = {
+                k: float(v) if v and is_number(v) else v for k, v in row_data.items()
+            }
+            df = df.append(row_data, ignore_index=True)
+
+        return {
+            k.replace("_rate", "").replace("_", " "): v
+            for k, v in df.iloc[0][["off_peak_rate", "mid_peak_rate", "on_peak_rate"]]
+            .to_dict()
+            .items()
+        }
+
+    def _get_rates_pre_2021_10(soup):
+        def find_kWhOffPeak(tag):
+            return tag.name == u"div" and tag.decode().find("kWh Off Peak") >= 0
+
+        tag = soup.find(find_kWhOffPeak)
+        match = re.search("top:(?P<top>\d+)px", tag.decode())
+        top = match.groups()[0]
+
+        # match all divs with the same top pixel coordinate
+        def find_matching_top(tag):
+            return tag.name == u"div" and tag.decode().find("top:%spx" % top) >= 0
+
+        for x in soup.find_all(find_matching_top):
+            fields = format_fields(x.span)
+            if len(fields) > 0 and str(fields[0]).find("at $") == 0:
+                rates = [float(x[4:]) for x in fields]
+                break
+
+        return dict(zip(["off peak", "on peak", "mid peak"], rates))
+
+    try:
+        return _get_rates(soup)
+    except:
+        return _get_rates_pre_2021_10(soup)
 
 
 def get_billing_date(soup):
-    def find_billing(tag):
-        return tag.name == u"div" and tag.decode().find("BILLING DATE") >= 0
+    def _get_date(soup):
+        try:
 
-    match = re.search(
-        "([A-Z]+)\s+(\d+)\s+(\d+)",
-        format_fields(
-            soup.find_all(find_billing)[0].next_sibling.next_sibling.span.contents
-        )[0],
-    )
-    month, day, year = match.groups()
+            def find_billing(tag):
+                return tag.name == u"span" and tag.decode().find("Invoice Date") >= 0
 
+            match = re.search(
+                "([A-Z]+)\s+(\d+),\s+(\d+)",
+                format_fields(soup.find_all(find_billing)[0].next_sibling.contents)[0],
+            )
+            return match.groups()
+        except:
+            return _get_date_pre_2021_10(soup)
+
+    def _get_date_pre_2021_10(soup):
+        # Valid for invoices before 2021-10
+        def find_billing(tag):
+            return tag.name == u"div" and tag.decode().find("BILLING DATE") >= 0
+
+        match = re.search(
+            "([A-Z]+)\s+(\d+)\s+(\d+)",
+            format_fields(
+                soup.find_all(find_billing)[0].next_sibling.next_sibling.span.contents
+            )[0],
+        )
+        return match.groups()
+
+    month, day, year = _get_date(soup)
     return arrow.get("%s %s %s" % (month, day, year), "MMM DD YYYY").date().isoformat()
 
 
-def get_electricity_rates(soup):
-    def find_kWhOffPeak(tag):
-        return tag.name == u"div" and tag.decode().find("kWh Off Peak") >= 0
-
-    tag = soup.find(find_kWhOffPeak)
-    match = re.search("top:(?P<top>\d+)px", tag.decode())
-    top = match.groups()[0]
-
-    # match all divs with the same top pixel coordinate
-    def find_matching_top(tag):
-        return tag.name == u"div" and tag.decode().find("top:%spx" % top) >= 0
-
-    for x in soup.find_all(find_matching_top):
-        fields = format_fields(x.span)
-        if len(fields) > 0 and str(fields[0]).find("at $") == 0:
-            rates = [float(x[4:]) for x in fields]
-            break
-
-    return dict(zip(["off peak", "on peak", "mid peak"], rates))
-
-
 def get_amount_due(soup):
-    def find_new_charges(tag):
-        return tag.name == u"div" and tag.decode().find("New Charges") >= 0
+    def _get_amount_due(soup):
+        def find_billing(tag):
+            return (
+                tag.name == u"div"
+                and tag.decode().find("Amount Due") >= 0
+                and tag.decode().find("Total Amount Due") == -1
+                and re.search("[\d]+\.[\d]+", tag.next_sibling.decode())
+            )
 
-    tag = soup.find(find_new_charges)
-    match = re.search("top:(?P<top>\d+)px", tag.decode())
-    top = float(match.groups()[0])
+        match = re.search(
+            "([\d]+\.[\d]+)", soup.find_all(find_billing)[0].next_sibling.decode()
+        )
+        return float(match.groups()[0])
 
-    def find_left_pos(tag):
-        if tag.name == u"div":
-            match = re.search("left:(?P<left>\d+)px", tag.decode())
-            if match:
-                left = float(match.groups()[0])
-                return left >= 120 and left <= 132
-        return False
+    def _get_amount_due_pre_2021_10(soup):
+        def find_new_charges(tag):
+            return tag.name == u"div" and tag.decode().find("New Charges") >= 0
 
-    tags = soup.find_all(find_left_pos)
-
-    distance = []
-    for tag in tags:
+        tag = soup.find(find_new_charges)
         match = re.search("top:(?P<top>\d+)px", tag.decode())
-        distance.append(abs(float(match.groups()[0]) - top))
+        top = float(match.groups()[0])
 
-    amount_due = format_fields(
-        tags[np.nonzero(distance == np.min(distance))[0][0]].span
-    )[0]
+        def find_left_pos(tag):
+            if tag.name == u"div":
+                match = re.search("left:(?P<left>\d+)px", tag.decode())
+                if match:
+                    left = float(match.groups()[0])
+                    return left >= 120 and left <= 132
+            return False
+
+        tags = soup.find_all(find_left_pos)
+
+        distance = []
+        for tag in tags:
+            match = re.search("top:(?P<top>\d+)px", tag.decode())
+            distance.append(abs(float(match.groups()[0]) - top))
+
+        return format_fields(tags[np.nonzero(distance == np.min(distance))[0][0]].span)[
+            0
+        ]
+
+    try:
+        amount_due = _get_amount_due(soup)
+    except:
+        amount_due = _get_amount_due_pre_2021_10(soup)
 
     index = str(amount_due).find("CR")
     if index >= 0:
         amount_due = (-1) * float(amount_due[:index])
-
     return amount_due
 
 
-def convert_data_to_df(data):
-    df = pd.DataFrame(
-        {
-            "Date": [arrow.get(x["date"]).date() for x in data],
-            "Amount Due": [x["amount due"] for x in data],
-            "Off Peak Consumption": [
-                x["electricity consumption"]["off peak"] for x in data
-            ],
-            "Mid Peak Consumption": [
-                x["electricity consumption"]["mid peak"] for x in data
-            ],
-            "On Peak Consumption": [
-                x["electricity consumption"]["on peak"] for x in data
-            ],
-            "Off Peak Rate": [x["electricity rates"]["off peak"] for x in data],
-            "Mid Peak Rate": [x["electricity rates"]["mid peak"] for x in data],
-            "On Peak Rate": [x["electricity rates"]["on peak"] for x in data],
-        }
-    )
-    df = df.set_index("Date")
-
-    df["Total Consumption"] = (
-        df["Off Peak Consumption"]
-        + df["Mid Peak Consumption"]
-        + df["On Peak Consumption"]
-    )
-    return df
-
-
-class Timeout(Exception):
-    pass
-
-
-class KitchenerWilmotHydroAPI:
+class KitchenerWilmotHydroAPI(UtilityAPI):
     name = get_name()
 
-    def __init__(self, user, password, data_directory="."):
-        self._user = user
-        self._password = password
-        self._driver = None
-        self._invoice_list = None
-        self._temp_download_dir = tempfile.mkdtemp()
-        self._data_directory = data_directory
-        self._hourly_data_directory = None
-        self._invoice_directory = None
-
-    def _init_driver(self, headless=False):
-        options = webdriver.ChromeOptions()
-        prefs = {
-            "download.default_directory": self._temp_download_dir,
-            "plugins.always_open_pdf_externally": True,
-        }
-        options.add_experimental_option("prefs", prefs)
-        # options.add_argument('window-size=1200x600')
-        options.add_argument("window-size=1920x1080")
-
-        if headless:
-            options.add_argument("headless")
-
-        self._driver = webdriver.Chrome(options=options)
-
-    def _close_driver(self):
-        self._driver.close()
-        self._driver = None
+    def __init__(
+        self,
+        user=None,
+        password=None,
+        data_path=None,
+        file_ext=".csv",
+        headless=True,
+        timeout=10,
+        save_statements=True,
+        google_sa_credentials=None,
+    ):
+        super().__init__(
+            user=user,
+            password=password,
+            data_path=data_path,
+            file_ext=file_ext,
+            headless=headless,
+            timeout=timeout,
+            save_statements=save_statements,
+            google_sa_credentials=google_sa_credentials,
+        )
+        self._resolutions_available.append("hourly")
+        self._hourly_data_directory = os.path.join(
+            self._data_path, self.name, "hourly data"
+        )
 
     def _login(self):
         self._driver.get("https://www3.kwhydro.on.ca/app/login.jsp")
@@ -187,33 +278,8 @@ class KitchenerWilmotHydroAPI:
             '//*[@id="login-form"]/div[3]/button'
         ).click()
 
-    def _download_link(self, link, ext, timeout=5):
-        # remove all files in the temp dir
-        files = os.listdir(self._temp_download_dir)
-        for file in files:
-            os.remove(os.path.join(self._temp_download_dir, file))
-
-        # add a random delay to keep from being banned
-        time.sleep(1 * random.random() * 3)
-
-        # download the link
-        link.click()
-
-        t_start = time.time()
-        filepath = None
-        # wait for the file to finish downloading
-        while time.time() - t_start < timeout:
-            files = glob.glob(os.path.join(self._temp_download_dir, "*.%s" % ext))
-            if len(files):
-                filepath = os.path.join(self._temp_download_dir, files[0])
-                time.sleep(0.5)
-                break
-        if not filepath:
-            raise Timeout
-        return filepath
-
     def download_hourly_data(self, start_date=None, end_date=None):
-        self._init_driver(headless=False)
+        self._init_driver()
 
         try:
             self._login()
@@ -237,14 +303,8 @@ class KitchenerWilmotHydroAPI:
                 date_range = pd.date_range(start_date, end_date, freq="M")
             date_range = [x.date() for x in date_range]
 
-            self._hourly_data_directory = os.path.join(
-                self._data_directory, self.name, "hourly data"
-            )
-
+            os.makedirs(self._hourly_data_directory, exist_ok=True)
             for date in date_range:
-                if not os.path.isdir(self._hourly_data_directory):
-                    os.makedirs(self._hourly_data_directory)
-
                 new_filepath = os.path.join(
                     self._hourly_data_directory, "%s.csv" % (date.isoformat())
                 )
@@ -287,7 +347,7 @@ class KitchenerWilmotHydroAPI:
                 # Wait a random period between requests so that we don't get blocked
                 time.sleep(5 + random.random() * 5)
 
-                filepath = self._download_link(
+                filepath = self.download_link(
                     self._driver.find_element_by_id("download"), "csv"
                 )
 
@@ -315,37 +375,52 @@ class KitchenerWilmotHydroAPI:
                 for i, row in df_csv.iterrows():
                     df.loc[row[0], "kWh"] = df_csv.loc[i][1:25].values
 
-                # Offset index by 1hr
-                df.index = [x + datetime.timedelta(hours=1) for x in df.index]
-
-                # If we're downloading data from the current month, delete
-                # previous files
-                if date == yesterday:
-                    files = glob.glob(
-                        os.path.join(
-                            self._hourly_data_directory,
-                            "%d-%02d-*.csv" % (date.year, date.month),
-                        )
+                # If we have existing files from the current month, delete them
+                files = glob.glob(
+                    os.path.join(
+                        self._hourly_data_directory,
+                        "%d-%02d-*.csv" % (date.year, date.month),
                     )
-                    for f in files:
-                        os.remove(f)
+                )
+                for f in files:
+                    os.remove(f)
 
                 # Save the reformatted data
                 df.to_csv(new_filepath)
         finally:
             self._close_driver()
 
-    def download_invoices(self, start_date=None, end_date=None, timeout=5):
-        if self._invoice_list is not None:
-            return self._invoice_list
+    def extract_data(self, pdf):
+        html_file = pdf_to_html(pdf)
+        with open(html_file, "r", encoding="utf8") as f:
+            soup = BeautifulSoup(f, "html.parser")
+        os.remove(html_file)
 
-        self._init_driver(headless=False)
+        date = get_billing_date(soup)
+        amount_due = get_amount_due(soup)
+        "%s - %s - $%.2f.pdf" % (date, get_name(), amount_due)
 
-        self._invoice_directory = os.path.abspath(
-            os.path.join(self._data_directory, self.name, "invoices")
-        )
-        if not os.path.isdir(self._invoice_directory):
-            os.makedirs(self._invoice_directory)
+        rates = get_rates(soup)
+        consuption = get_consumption(soup)
+
+        return {
+            "Date": date,
+            "Total": amount_due,
+            "Off Peak Consumption": consuption["off peak"],
+            "Mid Peak Consumption": consuption["mid peak"],
+            "On Peak Consumption": consuption["on peak"],
+            "Total Consumption": consuption["off peak"]
+            + consuption["mid peak"]
+            + consuption["on peak"],
+            "Off Peak Rate": rates["off peak"],
+            "Mid Peak Rate": rates["mid peak"],
+            "On Peak Rate": rates["on peak"],
+        }
+
+    def download_statements(self, start_date=None, end_date=None, max_downloads=None):
+        download_path = tempfile.mkdtemp()
+        self._init_driver()
+        downloaded_files = []
 
         try:
             self._login()
@@ -361,20 +436,26 @@ class KitchenerWilmotHydroAPI:
 
             # Open Bills & Payment
             link = self._driver.find_element_by_link_text("Bills & Payment")
-            self._driver.execute_script("arguments[0].scrollIntoView(true);", link)
-            time.sleep(0.5)
+            link.location_once_scrolled_into_view
             link.click()
-
             self._driver.switch_to.frame("iframe-BILLINQ")
-            time.sleep(0.5)
-            bills_table = self._driver.find_element_by_id("billsTable")
 
-            rows = [
-                [y for y in x.find_elements_by_tag_name("td")]
-                for x in bills_table.find_element_by_tag_name(
-                    "tbody"
-                ).find_elements_by_tag_name("tr")[2:]
-            ]
+            @wait_for_element
+            def get_bills_table():
+                return self._driver.find_element_by_id("billsTable")
+
+            @wait_for_element
+            def get_bills_table_rows(bills_table):
+                rows = [
+                    [y for y in x.find_elements_by_tag_name("td")]
+                    for x in bills_table.find_element_by_tag_name(
+                        "tbody"
+                    ).find_elements_by_tag_name("tr")
+                ]
+                return rows
+
+            bills_table = get_bills_table()
+            rows = get_bills_table_rows(bills_table)
 
             data = []
             for row in rows:
@@ -388,59 +469,26 @@ class KitchenerWilmotHydroAPI:
                 if end_date and date > end_date:
                     continue
 
+                if max_downloads and len(downloaded_files) >= max_downloads:
+                    break
+
                 data.append(row_data)
                 new_filepath = os.path.join(
-                    self._invoice_directory,
+                    download_path,
                     "%s - %s - $%s.pdf"
                     % (date.isoformat(), self.name, row_data[1].split(" ")[1]),
                 )
 
-                def download_link(link, ext, timeout=5):
-                    # remove all files in the temp dir
-                    files = os.listdir(self._temp_download_dir)
-                    for file in files:
-                        os.remove(os.path.join(self._temp_download_dir, file))
-
-                    # add a random delay to keep from being banned
-                    time.sleep(1 * random.random() * 3)
-
-                    # download the link
-                    link.click()
-
-                    t_start = time.time()
-                    filepath = None
-                    # wait for the file to finish downloading
-                    while time.time() - t_start < timeout:
-                        files = glob.glob(
-                            os.path.join(self._temp_download_dir, "*.%s" % ext)
-                        )
-                        if len(files):
-                            filepath = os.path.join(self._temp_download_dir, files[0])
-                            time.sleep(0.5)
-                            break
-                    if not filepath:
-                        raise Timeout
-                    return filepath
-
+                downloaded_files.append(new_filepath)
                 if not os.path.exists(new_filepath):
                     # download the pdf invoice
                     img = row[0].find_element_by_tag_name("img")
-                    filepath = download_link(img, "pdf")
-                    os.rename(filepath, new_filepath)
+                    filepath = self.download_link(img, "pdf")
+                    shutil.move(filepath, new_filepath)
         finally:
             self._close_driver()
 
-        # Convert to a dictionary
-        results = {}
-        for i, name in enumerate(["Invoice Date", "Invoice Amount"]):
-            results[name] = [x[i] for x in data]
+        if self._save_statements:
+            downloaded_files = self._copy_statements_to_data_path(downloaded_files)
 
-        # Reformat dates
-        for name in ["Invoice Date"]:
-            results[name] = [
-                arrow.get(x, "MMM D, YYYY").date().isoformat() for x in results[name]
-            ]
-
-        self._invoice_list = pd.DataFrame(results)
-
-        return self._invoice_list
+        return downloaded_files

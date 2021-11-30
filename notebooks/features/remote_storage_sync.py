@@ -30,9 +30,9 @@ import tempfile
 import pandas as pd
 from dotenv import load_dotenv
 
-sys.path.insert(0, os.path.join("..", "src"))
+sys.path.insert(0, os.path.join("..", "..", "src"))
 
-from utility_bill_scraper import GDriveHelper
+from utility_bill_scraper import GoogleDriveHelper
 
 # %%
 load_dotenv()
@@ -40,7 +40,7 @@ load_dotenv()
 # Load the google service account credentials from an environment variable
 google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
 
-gdh = GDriveHelper(google_sa_credentials)
+gdh = GoogleDriveHelper(google_sa_credentials)
 
 # %% [markdown]
 # # Setup the Google Drive folder

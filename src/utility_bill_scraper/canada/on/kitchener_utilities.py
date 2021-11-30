@@ -1,15 +1,13 @@
 import calendar
-import glob
 import os
-import random
 import re
 import shutil
 import tempfile
 import time
 
 import arrow
-import numpy as np
 import pandas as pd
+import numpy as np
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import (
     NoSuchElementException,
@@ -73,23 +71,20 @@ def get_water_consumption(soup):
     # Find the div containing 3 fields (gas has an extra
     # 'Billing Conversion Multiplier'). Note that it is possible to have
     # more than one consumption section.
-
     tags = [x for x in div_list if len(format_fields(x.contents[0])) == 3]
+    assert len(tags) == 1
+    tag = tags[0]
 
-    consumption = []
+    # Extract the top pixel coordinate.
+    match = re.search(r"top:(?P<top>\d+)px", tag.decode())
+    top = match.groups()[0]
 
-    for tag in tags:
-        # Extract the top pixel coordinate.
-        match = re.search(r"top:(?P<top>\d+)px", tag.decode())
-        top = match.groups()[0]
+    # Match all divs with the same top pixel coordinate.
+    def find_matching_top(tag):
+        return tag.name == "div" and tag.decode().find("top:%spx" % top) >= 0
 
-        # Match all divs with the same top pixel coordinate.
-        def find_matching_top(tag):
-            return tag.name == "div" and tag.decode().find("top:%spx" % top) >= 0
-
-        divs = [format_fields(x.contents[0]) for x in soup.find_all(find_matching_top)]
-        consumption.append(dict(zip(divs[0], divs[2])))
-    return consumption
+    divs = [format_fields(x.contents[0]) for x in soup.find_all(find_matching_top)]
+    return dict(zip(divs[0], divs[2]))
 
 
 def get_water_and_sewer_charges(soup):
@@ -147,21 +142,20 @@ def get_gas_consumption(soup):
     # 'Billing Conversion Multiplier'). Note that it is possible to have
     # more than one consumption section.
     tags = [x for x in div_list if len(format_fields(x.contents[0])) > 3]
+    assert len(tags) == 1
+    tag = tags[0]
 
-    consumption = []
-    for tag in tags:
-        # Extract the top pixel coordinate.
-        match = re.search(r"top:(?P<top>\d+)px", tag.decode())
-        top = match.groups()[0]
+    # Extract the top pixel coordinate.
+    match = re.search(r"top:(?P<top>\d+)px", tag.decode())
+    top = match.groups()[0]
 
-        # Match all divs with the same top pixel coordinate.
-        def find_matching_top(tag):
-            return tag.name == "div" and tag.decode().find("top:%spx" % top) >= 0
+    # Match all divs with the same top pixel coordinate.
+    def find_matching_top(tag):
+        return tag.name == "div" and tag.decode().find("top:%spx" % top) >= 0
 
-        divs = [format_fields(x.contents[0]) for x in soup.find_all(find_matching_top)]
+    divs = [format_fields(x.contents[0]) for x in soup.find_all(find_matching_top)]
 
-        consumption.append(dict(zip(divs[0], divs[2])))
-    return consumption
+    return dict(zip(divs[0], divs[2]))
 
 
 def get_gas_charges(soup):
@@ -385,41 +379,12 @@ class KitchenerUtilitiesAPI(UtilityAPI):
                         % (date.isoformat(), self.name, row_data[3]),
                     )
 
-                    def download_link(link, ext):
-                        # remove all files in the temp dir
-                        files = os.listdir(self._temp_download_dir)
-                        for file in files:
-                            os.remove(os.path.join(self._temp_download_dir, file))
-
-                        # add a random delay to keep from being banned
-                        time.sleep(1 * random.random() * 3)
-
-                        # download the link
-                        link.click()
-
-                        t_start = time.time()
-                        filepath = None
-                        # wait for the file to finish downloading
-                        while time.time() - t_start < self._timeout:
-                            files = glob.glob(
-                                os.path.join(self._temp_download_dir, "*.%s" % ext)
-                            )
-                            if len(files):
-                                filepath = os.path.join(
-                                    self._temp_download_dir, files[0]
-                                )
-                                time.sleep(0.5)
-                                break
-                        if not filepath:
-                            raise Timeout
-                        return filepath
-
                     downloaded_files.append(new_filepath)
                     if not os.path.exists(new_filepath):
                         # download the pdf statement
                         for img in row[0].find_elements_by_tag_name("img"):
                             if img.get_property("title") == "PDF":
-                                filepath = download_link(img, "pdf")
+                                filepath = self.download_link(img, "pdf")
                                 shutil.move(filepath, new_filepath)
 
                 return data
@@ -455,6 +420,9 @@ class KitchenerUtilitiesAPI(UtilityAPI):
                     break
         finally:
             self._close_driver()
+
+        if self._save_statements:
+            downloaded_files = self._copy_statements_to_data_path(downloaded_files)
 
         return downloaded_files
 
@@ -519,103 +487,36 @@ class KitchenerUtilitiesAPI(UtilityAPI):
         return convert_to_series(results)
 
     def extract_data(self, pdf_file):
+        """Extract data from a pdf_file.
+
+        Parameters
+        ----------
+        pdf_file :
+            Path to a pdf file.
+
+        Returns
+        ----------
+        dict of key/value pairs extracted from the pdf.
+        Must include:
+            Date: str
+            Total: str
+        """
         html_file = pdf_to_html(pdf_file)
         with open(html_file, "r", encoding="utf8") as f:
             soup = BeautifulSoup(f, "html.parser")
         os.remove(html_file)
-        summary = get_summary(soup)
 
+        result = get_summary(soup)
         # To do: several functions were broken when updating to python3
-        result = {
-            "name": self.name,
-            "summary": summary,
-            "water consumption": get_water_consumption(soup),
-            # 'water and sewer charges': self.get_water_and_sewer_charges(soup),
-            "gas consumption": get_gas_consumption(soup),
-            # 'gas charges': self.get_gas_charges(soup),
-            # 'gas rates': self.get_gas_rates(soup)
-        }
+        result["Water Consumption"] = get_water_consumption(soup)["Total Consumption"]
+        result["Gas Consumption"] = get_gas_consumption(soup)["Total Consumption"]
 
-        if "Pre-authorized Withdrawal" in result["summary"].keys():
-            amount_due = result["summary"]["Pre-authorized Withdrawal"]
+        if "Pre-authorized Withdrawal" in result.keys():
+            result["Total"] = result.pop("Pre-authorized Withdrawal")
         elif "Total Due" in result["summary"].keys():
-            amount_due = result["summary"]["Total Due"]
+            result["Total"] = result.pop("Total Due")
         else:
-            print("Couldn't find amount due!")
-            amount_due = None
+            raise Exception("Couldn't find amount due!")
+        result["Date"] = str(arrow.get(result.pop("Issue Date"), "MMM DD YYYY").date())
 
-        new_name = "%s - %s - $%.2f.pdf" % (
-            arrow.get(result["summary"]["Issue Date"], "MMM DD YYYY").format(
-                "YYYY-MM-DD"
-            ),
-            self.name,
-            amount_due,
-        )
-        return result, new_name
-
-    def convert_data_to_df(self, data):
-        cols = list(data[0]["summary"].keys())
-        if "Pre-authorized Withdrawal" in cols:
-            cols.remove("Pre-authorized Withdrawal")
-            cols.append("Total Due")
-
-        for x in data:
-            if "Pre-authorized Withdrawal" in x["summary"].keys():
-                x["summary"]["Total Due"] = x["summary"]["Pre-authorized Withdrawal"]
-        data_sets = []
-        for col in cols:
-            data_sets.append([x["summary"][col] for x in data])
-
-        df = pd.DataFrame(data=dict(zip(cols, data_sets)))
-
-        df["Issue Date"] = [
-            str(arrow.get(x, "MMM DD YYYY").date()) for x in df["Issue Date"]
-        ]
-        df = df.set_index("Issue Date")
-
-        # Extract water and gas consumption.
-        water_consumption = [
-            np.sum(
-                [
-                    x["Total Consumption"] if "Total Consumption" in x else 0
-                    for x in row["water consumption"]
-                ]
-            )
-            for row in data
-        ]
-        gas_consumption = [
-            np.sum(
-                [
-                    x["Total Consumption"] if "Total Consumption" in x else 0
-                    for x in row["gas consumption"]
-                ]
-            )
-            for row in data
-        ]
-        """
-        # To do: gas charges were broken when updating to python3
-        
-        gas_fixed_charge = [x['gas charges']['Gas Fixed Delivery Charge']
-                            if 'Gas Fixed Delivery Charge'
-                            in x['gas charges'] else None for x in data]
-        # Figure out the sales tax rate.
-        sales_tax_on_gas = [x['gas charges']['HST on Gas']
-                            if 'HST on Gas'
-                            in x['gas charges'] else None for x in data]
-        sales_tax_rate = df['Gas Charges'] / (
-            df['Gas Charges'] - sales_tax_on_gas) - 1
-
-        # Adjust the fixed charge by the sales tax
-        df['Gas Fixed Charges'] = np.round(gas_fixed_charge * (
-            1 + sales_tax_rate), 2)
-
-        # Calculate the variable charge and rate.
-        df['Gas Variable Charges'] = df['Gas Charges'] - df['Gas Fixed Charges']
-        df['Gas Variable Rate'] = (df['Gas Variable Charges'] /
-                                df['Gas Consumption'])
-        """
-
-        df["Water Consumption"] = water_consumption
-        df["Gas Consumption"] = gas_consumption
-
-        return df
+        return result

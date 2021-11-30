@@ -23,7 +23,7 @@ pytest = "^6.2.5"
 jupyterlab = "^3.1.18"
 jupytext = "^1.13.0"
 flake8 = "^4.0.1"
-black = "^21.9b0"
+black = {extras = ["jupyter"], version = "^21.11b1"}
 pytest-cov = "^3.0.0"
 
 [tool.poetry-dynamic-versioning]
@@ -33,3 +33,6 @@ format = "v{base}"
 [build-system]
 requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+ubs = "utility_bill_scraper.bin.ubs:main"
