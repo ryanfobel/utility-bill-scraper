@@ -6,9 +6,9 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.13.0
+#       jupytext_version: 1.13.2
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 # ---
@@ -22,7 +22,7 @@
 #
 # ## Setup
 #
-# Fill in your `username` and `password` below, then run all of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `data.csv` and the `*.pdf` statements).This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`.
+# Fill in your `username` and `password` below, then run all of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `monthly.csv` and the `*.pdf` statements).This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`.
 
 # %%
 username = ""
@@ -70,24 +70,24 @@ data_path = os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data"))
 # Get google service account credentials (if the environment variable is set).
 google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
 
-ku_api = ku.KitchenerUtilitiesAPI(
+api = ku.KitchenerUtilitiesAPI(
     username, password, data_path, google_sa_credentials=google_sa_credentials
 )
 
 # Get up to 24 statements (the most recent).
-updates = ku_api.update(24)
+updates = api.update(24)
 if updates is not None:
     print(f"{ len(updates) } statements_downloaded")
-ku_api.history().tail()
+api.history("monthly").tail()
 
 # %% [markdown]
 # ## Monthly consumption history
 
 # %%
-df_ku = ku_api.history()
+df = api.history("monthly")
 
 plt.figure()
-plt.bar(df_ku.index, df_ku["Gas Consumption"], width=bin_width, alpha=alpha)
+plt.bar(df.index, df["Gas Consumption"], width=bin_width, alpha=alpha)
 plt.xticks(rotation=90)
 plt.title("Monthly Gas Consumption")
 plt.ylabel("m$^3$")
@@ -100,7 +100,7 @@ plt.savefig(
 )
 
 plt.figure()
-plt.bar(df_ku.index, df_ku["Water Consumption"], width=bin_width, alpha=alpha)
+plt.bar(df.index, df["Water Consumption"], width=bin_width, alpha=alpha)
 plt.xticks(rotation=90)
 plt.title("Monthly Water Consumption")
 plt.ylabel("m$^3$")
@@ -117,12 +117,12 @@ plt.savefig(
 # %%
 from utility_bill_scraper import GAS_KGCO2_PER_CUBIC_METER
 
-df_ku["kgCO2"] = df_ku["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
-df_ku["year"] = [int(x[0:4]) for x in df_ku.index]
-df_ku["month"] = [int(x[5:7]) for x in df_ku.index]
+df["kgCO2"] = df["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
+df["year"] = [int(x[0:4]) for x in df.index]
+df["month"] = [int(x[5:7]) for x in df.index]
 
 plt.figure()
-df_ku.groupby("year").sum()["Gas Consumption"].plot.bar(width=bin_width, alpha=alpha)
+df.groupby("year").sum()["Gas Consumption"].plot.bar(width=bin_width, alpha=alpha)
 plt.ylabel("m$^3$")
 ylim = plt.ylim()
 ax = plt.gca()
@@ -131,7 +131,7 @@ plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Annual CO$_2$e emissions from natural gas")
 plt.savefig(
-    os.path.join("images", "annual_co2_emissions.png"),
+    os.path.join("images", "annual_co2_emissions_natural_gas.png"),
     bbox_inches=bbox_inches,
     transparent=transparent,
     facecolor=facecolor,
@@ -144,7 +144,7 @@ plt.savefig(
 n_years_history = 1
 
 plt.figure()
-for year, df_year in df_ku.groupby("year"):
+for year, df_year in df.groupby("year"):
     if year >= dt.datetime.utcnow().year - n_years_history:
         df_year.sort_values("month", inplace=True)
         plt.bar(
@@ -164,14 +164,14 @@ plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Monthly CO$_2$e emissions from natural gas")
 plt.savefig(
-    os.path.join("images", "monthly_co2_emissions.png"),
+    os.path.join("images", "monthly_co2_emissions_natural_gas.png"),
     bbox_inches=bbox_inches,
     transparent=transparent,
     facecolor=facecolor,
 )
 
 plt.figure()
-for year, df_year in df_ku.groupby("year"):
+for year, df_year in df.groupby("year"):
     if year >= dt.datetime.utcnow().year - n_years_history:
         df_year.sort_values("month", inplace=True)
         plt.bar(
@@ -191,7 +191,7 @@ plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Cumulative CO$_2$e emissions from natural gas per year")
 plt.savefig(
-    os.path.join("images", "cumulative_co2_emissions.png"),
+    os.path.join("images", "cumulative_co2_emissions_natural_gas.png"),
     bbox_inches=bbox_inches,
     transparent=transparent,
     facecolor=facecolor,

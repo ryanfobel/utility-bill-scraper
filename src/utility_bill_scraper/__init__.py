@@ -212,6 +212,7 @@ class UtilityAPI:
         self._file_ext = file_ext
         self._save_statements = save_statements
         self._timeout = timeout
+        self._resolutions_available = ["monthly"]
 
         if google_sa_credentials is not None:
             self._gdh = GoogleDriveHelper(google_sa_credentials)
@@ -225,9 +226,9 @@ class UtilityAPI:
                 f'{",".join([f"`{x}`" for x in supported_filetypes])}'
             )
 
-        self._history = pd.DataFrame()
+        self._monthly_history = pd.DataFrame()
 
-        # If `data_path` is a google drive folder download the data file.
+        # If `data_path` is a google drive folder download the monthly data file.
         if is_gdrive_path(self._data_path):
             if google_sa_credentials is None:
                 raise RuntimeError(
@@ -242,24 +243,24 @@ class UtilityAPI:
 
             try:
                 data_file = self._gdh.get_file_in_folder(
-                    utility_folder["id"], "data" + self._file_ext
+                    utility_folder["id"], "monthly" + self._file_ext
                 )
                 file = self._gdh.download_file(
                     data_file["id"],
-                    os.path.join(self._temp_download_dir, "data" + self._file_ext),
+                    os.path.join(self._temp_download_dir, "monthly" + self._file_ext),
                 )
-                self._history = pd.read_csv(
-                    os.path.join(self._temp_download_dir, "data" + self._file_ext)
+                self._monthly_history = pd.read_csv(
+                    os.path.join(self._temp_download_dir, "monthly" + self._file_ext)
                 ).set_index("Date")
             except IndexError:  # File doesn't exist
-                self._history = pd.DataFrame()
+                self._monthly_history = pd.DataFrame()
 
         elif os.path.exists(
-            os.path.join(self._data_path, self.name, "data" + self._file_ext)
+            os.path.join(self._data_path, self.name, "monthly" + self._file_ext)
         ):
             # Load csv with previously cached data if it exists locally.
-            self._history = pd.read_csv(
-                os.path.join(self._data_path, self.name, "data" + self._file_ext)
+            self._monthly_history = pd.read_csv(
+                os.path.join(self._data_path, self.name, "monthly" + self._file_ext)
             ).set_index("Date")
 
     def _init_driver(self, browser="Firefox"):
@@ -277,6 +278,7 @@ class UtilityAPI:
                 )
             self._driver = webdriver.Chrome(options=options)
         elif self._browser == "Firefox":
+            
             options = webdriver.firefox.options.Options()
             options.set_preference("browser.download.folderList", 2)
             options.set_preference("browser.download.dir", self._temp_download_dir)
@@ -286,7 +288,8 @@ class UtilityAPI:
             )
             options.set_preference(
                 "browser.helperApps.neverAsk.saveToDisk",
-                "application/pdf;text/plain;application/text;text/xml;application/xml",
+                "application/pdf,text/plain,application/text,text/xml,application/xml,"
+                "application/force-download"
             )
             options.set_preference("pdfjs.disabled", True)
             # disable the built-in PDF viewer
@@ -298,8 +301,16 @@ class UtilityAPI:
                 options.add_argument("--no-sandbox")
             self._driver = webdriver.Firefox(options=options)
 
-    def history(self):
-        return self._history
+    def history(self, resolution="monthly"):
+        if resolution not in self._resolutions_available:
+            raise RuntimeError("resolution must be one of: " +
+                f"{ ', '.join(supported_resolutions) }."
+            )
+        
+        if resolution == "monthly":
+            return self._monthly_history
+        elif resolution == "hourly":
+            return self._hourly_history
 
     def __del__(self):
         if self._driver:
@@ -408,29 +419,47 @@ class UtilityAPI:
                 )
                 for local_path in pdf_files
             ]
+        return pdf_files
 
     def update(self, max_downloads=None):
         # Download any new statements.
         start_date = None
-        if len(self._history):
+        if len(self._monthly_history):
             start_date = (
-                arrow.get(self._history.sort_index().index[-1]).date()
+                arrow.get(self._monthly_history.sort_index().index[-1]).date()
                 + dt.timedelta(days=1)
             ).isoformat()
         pdf_files = self.download_statements(
             start_date=start_date, max_downloads=max_downloads
         )
+        return self.extract_data_from_statements(pdf_files)
 
+    def extract_data_from_statements(self, pdf_files):
         df_new_rows = pd.DataFrame()
+        cached_invoice_dates = list(self._monthly_history.index)
         for pdf in pdf_files:
-            df = self.scrape_pdf_file(pdf)
-            if df is not None:
-                df_new_rows = df_new_rows.append(df)
-        self._history = self._history.append(df_new_rows)
+            # Scrape data from pdf file
+            date = os.path.splitext(os.path.basename(pdf))[0].split(" - ")[0]
 
+            # If we've already scraped this pdf, continue
+            if date not in cached_invoice_dates:
+                print("Scrape data from %s" % pdf)
+                try:
+                    result = self.extract_data(pdf)
+                    df_new_rows = df_new_rows.append(
+                        pd.DataFrame(result, index=[None]).set_index("Date")
+                    )
+                except Exception:
+                    traceback.print_exc()
+        self._monthly_history = self._monthly_history.append(df_new_rows)
+        self._monthly_history.sort_index(inplace=True)
+        self._update_history()
+        return df_new_rows
+        
+    def _update_history(self):
         # Update history
-
-        # If `data_path` is a google drive folder, upload the data file.
+        
+        # If `data_path` is a google drive folder, upload the monthly data file.
         if is_gdrive_path(self._data_path):
             folder_id = self._data_path.split("/")[-1]
             try:
@@ -438,22 +467,22 @@ class UtilityAPI:
             except IndexError:
                 utility_folder = self._gdh.create_subfolder(folder_id, self.name)
 
-            self._history.to_csv(
-                os.path.join(self._temp_download_dir, "data" + self._file_ext)
+            self._monthly_history.to_csv(
+                os.path.join(self._temp_download_dir, "monthly" + self._file_ext)
             )
 
             try:
                 data_file = self._gdh.get_file_in_folder(
-                    utility_folder["id"], "data" + self._file_ext
+                    utility_folder["id"], "monthly" + self._file_ext
                 )
                 self._gdh.upload_file(
                     data_file["id"],
-                    os.path.join(self._temp_download_dir, "data" + self._file_ext),
+                    os.path.join(self._temp_download_dir, "monthly" + self._file_ext),
                 )
             except IndexError:
                 data_file = self._gdh.create_file_in_folder(
                     utility_folder["id"],
-                    os.path.join(self._temp_download_dir, "data" + self._file_ext),
+                    os.path.join(self._temp_download_dir, "monthly" + self._file_ext),
                 )
 
         else:
@@ -461,24 +490,6 @@ class UtilityAPI:
             os.makedirs(os.path.join(self._data_path, self.name), exist_ok=True)
 
             # Update csv file
-            self._history.to_csv(
-                os.path.join(self._data_path, self.name, "data" + self._file_ext)
+            self._monthly_history.to_csv(
+                os.path.join(self._data_path, self.name, "monthly" + self._file_ext)
             )
-
-        return df_new_rows
-
-    def scrape_pdf_file(self, pdf):
-        cached_invoice_dates = list(self._history.index)
-
-        # Scrape data from pdf file
-        date = os.path.splitext(os.path.basename(pdf))[0].split(" - ")[0]
-
-        # If we've already scraped this pdf, continue
-        if date not in cached_invoice_dates:
-            print("Scrape data from %s" % pdf)
-            try:
-                result = self.extract_data(pdf)
-                return pd.DataFrame(result).set_index("Date")
-            except Exception:
-                traceback.print_exc()
-        return None
