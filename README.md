@@ -12,7 +12,7 @@ The science is clear — global temperatures are rising and we need to drastical
 
 There are [many](https://app.projectneutral.org/) [existing](https://coolclimate.berkeley.edu/calculator) [carbon](https://www.nature.org/en-us/get-involved/how-to-help/carbon-footprint-calculator/) [footprint](https://www.carbonfootprint.com/calculator.aspx) [calculators](https://www3.epa.gov/carbon-footprint-calculator/), but they often require manual data entry, leading most people to try them once to get a static snapshot at a point in time. While useful for gaining a high-level understanding of your personal emission sources, it would be much better if this footprint could be automatically updated over time to provide people with **feedback** on the impact of their actions. This project aims to do just that — to assist individuals with collecting data from utility companies (e.g., electricity and natural gas) by automatically downloading their data and converting usage into CO<sub>2</sub> emissions.
 
-![monthly_co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_co2_emissions.png)
+![monthly_co2_emissions](https://raw.githubusercontent.com/ryanfobel/utility-bill-scraper/main/notebooks/canada/on/images/monthly_co2_emissions_natural_gas.png)
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -40,6 +40,7 @@ There are [many](https://app.projectneutral.org/) [existing](https://coolclimate
 The simplest way to get started is to click on one of the following links, which will open a session on https://mybinder.org where you can try downloading some data. **Note: after you click on the link, it will take a couple of minutes to load an interactive Jupyter notebook.** Then follow the instructions (e.g., provide your `username` and `password`) to run the notebook directly from your browser.
 
  * [Kitchener Utilities (gas & water)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
+ * [Kitchener-Wilmot Hydro](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_wilmot_hydro.ipynb)
  
 ## Install
 
