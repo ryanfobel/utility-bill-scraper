@@ -179,10 +179,6 @@ def _run_cmd(cmd):
     )
 
 
-def _cmd(cmd):
-    print(_run_cmd(cmd))
-
-
 def install_colab_dependencies(required_envs, debug=False):
     """Detect if we are running in a colab environment, and if so, install
     necessary dependencies.
@@ -195,12 +191,12 @@ def install_colab_dependencies(required_envs, debug=False):
     if "google.colab" in sys.modules.keys():
         output = ""
         if not os.path.exists("/usr/bin/chromedriver"):
-            output += _cmd(f"apt-get update")
-            output += _cmd(f"apt install chromium-chromedriver")
+            output += _run_cmd(f"apt-get update")
+            output += _run_cmd(f"apt install chromium-chromedriver")
 
         # Force a version of pandas that is compatible with colab
-        if _cmd("python -c 'import pandas; print(pandas.__version__)'") != "1.1.5":
-            output += _cmd(f"{ sys.executable } -m pip install pandas==1.1.5")
+        if _run_cmd("python -c 'import pandas; print(pandas.__version__)'") != "1.1.5":
+            output += _run_cmd(f"{ sys.executable } -m pip install pandas==1.1.5")
 
         if debug:
             print(output)
