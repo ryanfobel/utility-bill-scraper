@@ -20,11 +20,10 @@ repos:
         language: python
         args: ["--filter-files"]
         files: \.py$
-      - id: black
+      - id: black-jupyter
         name: Black Python code formatting
         entry: bash -c 'black "$@"; git add -u' --
         language: python
-        types: [python, jupyter]
       - id: flake8
         name: Flake8 linting
         entry: bash -c 'flake8 "$@"'

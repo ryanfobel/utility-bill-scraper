@@ -26,8 +26,18 @@ def update(
             save_statements=save_statements,
             google_sa_credentials=google_sa_credentials,
         )
+    elif utility_name == "Kitchener-Wilmot Hydro":
+        import utility_bill_scraper.canada.on.kitchener_wilmot_hydro as kwh
+
+        api = kwh.KitchenerWilmotHydroAPI(
+            user,
+            password,
+            data_path=data_path,
+            save_statements=save_statements,
+            google_sa_credentials=google_sa_credentials,
+        )
     else:
-        print(f"Unsupported utility: {utility_name}")
+        raise RuntimeError(f"Unsupported utility: {utility_name}")
 
     updates = api.update(max_downloads=max_downloads)
     if updates is not None:
@@ -41,8 +51,12 @@ def export(utility_name, data_path, output, google_sa_credentials):
         import utility_bill_scraper.canada.on.kitchener_utilities as ku
 
         api = ku.KitchenerUtilitiesAPI(data_path=data_path)
+    elif utility_name == "Kitchener-Wilmot Hydro":
+        import utility_bill_scraper.canada.on.kitchener_wilmot_hydro as kwh
+
+        api = kwh.KitchenerWilmotHydroAPI(data_path=data_path)
     else:
-        print(f"Unsupported utility: {utility_name}")
+        raise RuntimeError(f"Unsupported utility: {utility_name}")
 
     df = api.cached_history()
     ext = os.path.splitext(output.lower())[-1]
