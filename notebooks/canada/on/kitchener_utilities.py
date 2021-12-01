@@ -35,7 +35,6 @@ except ModuleNotFoundError:
     cmd = (
         f"{sys.executable} -m pip install --force-reinstall "
         "git+https://github.com/ryanfobel/utility-bill-scraper.git@colab "
-        "pandas==1.1.5"
     )
     subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode("utf-8")
 
