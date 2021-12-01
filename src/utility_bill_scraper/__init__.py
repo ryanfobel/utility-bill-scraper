@@ -198,6 +198,7 @@ class UtilityAPI:
         data_path=None,
         file_ext=".csv",
         headless=True,
+        browser="Firefox",
         timeout=10,
         save_statements=True,
         google_sa_credentials=None,
@@ -205,7 +206,7 @@ class UtilityAPI:
         self._user = user
         self._password = password
         self._driver = None
-        self._browser = None
+        self._browser = browser
         self._headless = headless
         self._temp_download_dir = tempfile.mkdtemp()
         self._data_path = data_path or os.path.abspath(os.path.join(".", "data"))
@@ -263,8 +264,7 @@ class UtilityAPI:
                 os.path.join(self._data_path, self.name, "monthly" + self._file_ext)
             ).set_index("Date")
 
-    def _init_driver(self, browser="Firefox"):
-        self._browser = browser
+    def _init_driver(self):
         if self._browser == "Chrome":
             options = webdriver.ChromeOptions()
             prefs = {"download.default_directory": self._temp_download_dir}
