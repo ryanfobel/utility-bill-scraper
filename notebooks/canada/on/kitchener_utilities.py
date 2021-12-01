@@ -41,7 +41,6 @@ def _cmd(cmd):
     print(_run_cmd(cmd))
 
 
-browser = "Firefox"
 # install dependencies for google colab
 if "google.colab" in sys.modules.keys():
     _cmd(
@@ -54,8 +53,13 @@ if "google.colab" in sys.modules.keys():
     from google.colab import drive
 
     drive.mount("/content/drive")
+
     os.environ["DATA_PATH"] = "/content/drive/MyDrive/Colab Notebooks/data"
-    browser = "Chrome"
+    os.environ["BROWSER"] = "Chrome"
+
+    from dotenv import load_dotenv
+
+    load_dotenv(os.path.join(os.environ["DATA_PATH"], ".env"))
 
 # %%
 username = ""
@@ -96,6 +100,8 @@ if not password:
 
 # Set the path where data is saved.
 data_path = os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data"))
+
+browser = os.getenv("BROWSER", "Firefox")
 
 # Get google service account credentials (if the environment variable is set).
 google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
