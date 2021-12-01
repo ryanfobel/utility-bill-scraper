@@ -227,15 +227,17 @@ class UtilityAPI:
         supported_filetypes = [".csv"]
         if self._file_ext not in supported_filetypes:
             raise UnsupportedFileType(
-                f"`file_ext`={self._file_ext} has an invalid filetype. Acceptable extensions are " +
-                ",".join([f"\"{x}\"" for x in supported_filetypes]) + "."
+                f"`file_ext`={self._file_ext} has an invalid filetype. Acceptable extensions are "
+                + ",".join([f'"{x}"' for x in supported_filetypes])
+                + "."
             )
 
         supported_browsers = ["Chrome", "Firefox"]
         if self._browser not in supported_browsers:
             raise UnsupportedBrowser(
-                f"`browser`={self._browser} is invalid. Supported browsers are " +
-                ",".join([f"\"{x}\"" for x in supported_browsers]) + "."
+                f"`browser`={self._browser} is invalid. Supported browsers are "
+                + ",".join([f'"{x}"' for x in supported_browsers])
+                + "."
             )
 
         self._monthly_history = pd.DataFrame()
