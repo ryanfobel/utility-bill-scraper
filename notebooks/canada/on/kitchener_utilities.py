@@ -41,6 +41,7 @@ def _cmd(cmd):
     print(_run_cmd(cmd))
 
 
+browser = "Firefox"
 # install dependencies for google colab
 if "google.colab" in sys.modules.keys():
     _cmd(
@@ -48,13 +49,13 @@ if "google.colab" in sys.modules.keys():
     )
     _cmd(f"apt-get update # to update ubuntu to correctly run apt install")
     _cmd(f"apt install chromium-chromedriver")
-    _cmd(f"cp /usr/lib/chromium-browser/chromedriver /usr/bin")
 
     # mount the user's google drive
     from google.colab import drive
 
     drive.mount("/content/drive")
-    os.environ["DATA_PATH"] = "/content/driver/data"
+    os.environ["DATA_PATH"] = "/content/drive/MyDrive/Colab Notebooks/data"
+    browser = "Chrome"
 
 # %%
 username = ""
@@ -100,7 +101,11 @@ data_path = os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data"))
 google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
 
 api = ku.KitchenerUtilitiesAPI(
-    username, password, data_path, google_sa_credentials=google_sa_credentials
+    username,
+    password,
+    data_path,
+    google_sa_credentials=google_sa_credentials,
+    browser=browser,
 )
 
 # Get up to 24 statements (the most recent).
