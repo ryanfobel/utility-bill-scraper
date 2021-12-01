@@ -23,84 +23,14 @@
 #
 # ## Setup
 #
-# Fill in your `username` and `password` below, then run all of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `monthly.csv` and the `*.pdf` statements).This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`.
+# Run all of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `monthly.csv` and the `*.pdf` statements).This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`.
 
 # %%
-import os
-import subprocess
-import sys
-
-
-def _run_cmd(cmd):
-    return subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode(
-        "utf-8"
-    )
-
-
-def _cmd(cmd):
-    print(_run_cmd(cmd))
-
-
-# install dependencies for google colab
-def install_colab_dependencies(required_envs):
-    if "google.colab" in sys.modules.keys():
-        _cmd(
-            f"{sys.executable} -m pip install --upgrade --force-reinstall git+https://github.com/ryanfobel/utility-bill-scraper.git"
-        )
-        _cmd(f"apt-get update # to update ubuntu to correctly run apt install")
-        _cmd(f"apt install chromium-chromedriver")
-
-        # mount the user's google drive
-        from google.colab import drive
-
-        drive.mount("/content/drive")
-
-        os.environ["DATA_PATH"] = "/content/drive/MyDrive/Colab Notebooks/data"
-        os.environ["BROWSER"] = "Chrome"
-        dot_env_path = os.path.join(os.environ["DATA_PATH"], ".env")
-
-        from dotenv import load_dotenv
-
-        load_dotenv(dot_env_path)
-
-        def get_env(env_name):
-            """Check if the environment variable exists; otherwise prompt the
-            user and append it to the `.env` file."""
-
-            if not os.getenv(env_name):
-                print(f"Enter a value for { env_name }")
-                value = input()
-                with open(dot_env_path, "a") as f:
-                    f.write(f"{ env_name }={ value }")
-                os.environ[env_name] = value
-
-        for name in required_envs:
-            get_env(name)
-
-
-install_colab_dependencies(
-    required_envs=["KITCHENER_UTILITIES_USER", "KITCHENER_UTILITIES_PASSWORD"]
-)
-
-# %%
-
-# %%
-username = ""
-password = ""
-
-# Plotting preferences
-bin_width = 0.9
-alpha = 0.5
-transparent = False
-bbox_inches = "tight"
-facecolor = "white"
-
 # %matplotlib inline
 
 import datetime as dt
 import os
 import shutil
-import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -108,33 +38,29 @@ from dotenv import load_dotenv
 from matplotlib import rcParams
 
 import utility_bill_scraper.canada.on.kitchener_utilities as ku
+from utility_bill_scraper import install_colab_dependencies
+
+install_colab_dependencies(
+    required_envs=["KITCHENER_UTILITIES_USER", "KITCHENER_UTILITIES_PASSWORD"]
+)
+
+# Plotting preferences
+bin_width = 0.9
+alpha = 0.5
+transparent = False
+bbox_inches = "tight"
+facecolor = "white"
+rcParams.update({"figure.figsize": (12, 6)})
 
 # Load the `.env` file into the environment if it exists
 load_dotenv()
 
-rcParams.update({"figure.figsize": (12, 6)})
-
-# If we haven't set a username/password, try getting them from
-# environment variables.
-if not username:
-    username = os.getenv("KITCHENER_UTILITIES_USER")
-if not password:
-    password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
-
-# Set the path where data is saved.
-data_path = os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data"))
-
-browser = os.getenv("BROWSER", "Firefox")
-
-# Get google service account credentials (if the environment variable is set).
-google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
-
 api = ku.KitchenerUtilitiesAPI(
-    username,
-    password,
-    data_path,
-    google_sa_credentials=google_sa_credentials,
-    browser=browser,
+    user=os.getenv("KITCHENER_UTILITIES_USER"),
+    password=os.getenv("KITCHENER_UTILITIES_PASSWORD"),
+    data_path=os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data")),
+    google_sa_credentials=os.getenv("GOOGLE_SA_CREDENTIALS"),
+    browser=os.getenv("BROWSER", "Firefox"),
 )
 
 # Get up to 24 statements (the most recent).
@@ -268,6 +194,7 @@ plt.savefig(
 # %%
 from utility_bill_scraper import is_gdrive_path
 
+data_path = os.environ["DATA_PATH"]
 if is_gdrive_path(data_path):
     print(data_path)
 else:
