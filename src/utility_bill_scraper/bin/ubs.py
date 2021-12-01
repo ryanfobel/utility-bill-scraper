@@ -15,6 +15,7 @@ def update(
     save_statements,
     max_downloads,
     google_sa_credentials,
+    browser,
 ):
     if utility_name == "Kitchener Utilities":
         import utility_bill_scraper.canada.on.kitchener_utilities as ku
@@ -25,6 +26,7 @@ def update(
             data_path=data_path,
             save_statements=save_statements,
             google_sa_credentials=google_sa_credentials,
+            browser=browser,
         )
     elif utility_name == "Kitchener-Wilmot Hydro":
         import utility_bill_scraper.canada.on.kitchener_wilmot_hydro as kwh
@@ -35,6 +37,7 @@ def update(
             data_path=data_path,
             save_statements=save_statements,
             google_sa_credentials=google_sa_credentials,
+            browser=browser,
         )
     else:
         raise RuntimeError(f"Unsupported utility: {utility_name}")
@@ -89,6 +92,9 @@ def main():
     )
     parser_update.add_argument(
         "-m", "--max-downloads", help="maximum number of statements to download"
+    )
+    parser_update.add_argument(
+        "-b", "--browser", help="'Firefox' (default) or 'Chrome'"
     )
 
     parser_export = subparsers.add_parser("export")
