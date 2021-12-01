@@ -14,6 +14,7 @@
 # ---
 
 # %% [markdown] tags=[]
+# [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryanfobel/utility-bill-scraper/blob/main/notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
 # [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
 #
 # # Introduction
@@ -23,6 +24,37 @@
 # ## Setup
 #
 # Fill in your `username` and `password` below, then run all of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `monthly.csv` and the `*.pdf` statements).This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`.
+
+# %%
+import os
+import subprocess
+import sys
+
+
+def _run_cmd(cmd):
+    return subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode(
+        "utf-8"
+    )
+
+
+def _cmd(cmd):
+    print(_run_cmd(cmd))
+
+
+# install dependencies for google colab
+if "google.colab" in sys.modules.keys():
+    _cmd(
+        f"{sys.executable} -m pip install --upgrade --force-reinstall git+https://github.com/ryanfobel/utility-bill-scraper.git"
+    )
+    _cmd(f"apt-get update # to update ubuntu to correctly run apt install")
+    _cmd(f"apt install chromium-chromedriver")
+    _cmd(f"cp /usr/lib/chromium-browser/chromedriver /usr/bin")
+
+    # mount the user's google drive
+    from google.colab import drive
+
+    drive.mount("/content/drive")
+    os.environ["DATA_PATH"] = "/content/driver/data"
 
 # %%
 username = ""
@@ -41,9 +73,6 @@ import datetime as dt
 import os
 import shutil
 import sys
-
-# Update the path to include the src directory
-sys.path.insert(0, os.path.abspath(os.path.join("..", "..", "..", "src")))
 
 import matplotlib.pyplot as plt
 import numpy as np
