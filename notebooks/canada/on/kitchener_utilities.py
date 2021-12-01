@@ -42,24 +42,47 @@ def _cmd(cmd):
 
 
 # install dependencies for google colab
-if "google.colab" in sys.modules.keys():
-    _cmd(
-        f"{sys.executable} -m pip install --upgrade --force-reinstall git+https://github.com/ryanfobel/utility-bill-scraper.git"
-    )
-    _cmd(f"apt-get update # to update ubuntu to correctly run apt install")
-    _cmd(f"apt install chromium-chromedriver")
+def install_colab_dependencies(required_envs):
+    if "google.colab" in sys.modules.keys():
+        _cmd(
+            f"{sys.executable} -m pip install --upgrade --force-reinstall git+https://github.com/ryanfobel/utility-bill-scraper.git"
+        )
+        _cmd(f"apt-get update # to update ubuntu to correctly run apt install")
+        _cmd(f"apt install chromium-chromedriver")
 
-    # mount the user's google drive
-    from google.colab import drive
+        # mount the user's google drive
+        from google.colab import drive
 
-    drive.mount("/content/drive")
+        drive.mount("/content/drive")
 
-    os.environ["DATA_PATH"] = "/content/drive/MyDrive/Colab Notebooks/data"
-    os.environ["BROWSER"] = "Chrome"
+        os.environ["DATA_PATH"] = "/content/drive/MyDrive/Colab Notebooks/data"
+        os.environ["BROWSER"] = "Chrome"
+        dot_env_path = os.path.join(os.environ["DATA_PATH"], ".env")
 
-    from dotenv import load_dotenv
+        from dotenv import load_dotenv
 
-    load_dotenv(os.path.join(os.environ["DATA_PATH"], ".env"))
+        load_dotenv(dot_env_path)
+
+        def get_env(env_name):
+            """Check if the environment variable exists; otherwise prompt the
+            user and append it to the `.env` file."""
+
+            if not os.getenv(env_name):
+                print(f"Enter a value for { env_name }")
+                value = input()
+                with open(dot_env_path, "a") as f:
+                    f.write(f"{ env_name }={ value }")
+                os.environ[env_name] = value
+
+        for name in required_envs:
+            get_env(name)
+
+
+install_colab_dependencies(
+    required_envs=["KITCHENER_UTILITIES_USER", "KITCHENER_UTILITIES_PASSWORD"]
+)
+
+# %%
 
 # %%
 username = ""
