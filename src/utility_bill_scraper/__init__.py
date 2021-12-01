@@ -193,8 +193,9 @@ def install_colab_dependencies(required_envs):
         they will be saved to a `.env` file for future use.
     """
     if "google.colab" in sys.modules.keys():
-        _cmd(f"apt-get update")
-        _cmd(f"apt install chromium-chromedriver")
+        if not os.path.exists("/usr/bin/chromedriver"):
+            _cmd(f"apt-get update")
+            _cmd(f"apt install chromium-chromedriver")
 
         # mount the user's google drive
         from google.colab import drive

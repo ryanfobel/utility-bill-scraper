@@ -417,7 +417,7 @@ class KitchenerUtilitiesAPI(UtilityAPI):
                 # Because the statments are in reverse chronological order, we
                 # can stop as soon as we've checked a date that is prior to the
                 # start date.
-                if last_date < start_date:
+                if start_date and last_date < start_date:
                     break
         finally:
             self._close_driver()

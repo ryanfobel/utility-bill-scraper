@@ -36,13 +36,8 @@ except ModuleNotFoundError:
         f"{sys.executable} -m pip install --force-reinstall "
         "git+https://github.com/ryanfobel/utility-bill-scraper.git@colab"
     )
-    print(
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode(
-            "utf-8"
-        )
-    )
+    subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode("utf-8")
 
-# %%
 from utility_bill_scraper import install_colab_dependencies
 
 install_colab_dependencies(
