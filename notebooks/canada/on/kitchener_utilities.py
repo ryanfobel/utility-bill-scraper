@@ -26,11 +26,35 @@
 # Run all of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `monthly.csv` and the `*.pdf` statements).This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`.
 
 # %%
+try:
+    pass
+except ModuleNotFoundError:
+    import subprocess
+    import sys
+
+    cmd = (
+        f"{sys.executable} -m pip install --force-reinstall "
+        "git+https://github.com/ryanfobel/utility-bill-scraper.git@colab"
+    )
+    print(
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode(
+            "utf-8"
+        )
+    )
+
+# %%
+from utility_bill_scraper import install_colab_dependencies
+
+install_colab_dependencies(
+    required_envs=["KITCHENER_UTILITIES_USER", "KITCHENER_UTILITIES_PASSWORD"]
+)
+
 # %matplotlib inline
 
 import datetime as dt
 import os
 import shutil
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np

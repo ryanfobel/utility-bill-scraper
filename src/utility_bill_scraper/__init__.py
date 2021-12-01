@@ -193,9 +193,6 @@ def install_colab_dependencies(required_envs):
         they will be saved to a `.env` file for future use.
     """
     if "google.colab" in sys.modules.keys():
-        _cmd(
-            f"{sys.executable} -m pip install git+https://github.com/ryanfobel/utility-bill-scraper.git"
-        )
         _cmd(f"apt-get update")
         _cmd(f"apt install chromium-chromedriver")
 
@@ -220,7 +217,7 @@ def install_colab_dependencies(required_envs):
                 print(f"Enter a value for { env_name }")
                 value = input()
                 with open(dot_env_path, "a") as f:
-                    f.write(f"{ env_name }={ value }")
+                    f.write(f"{ env_name }={ value }\n")
                 os.environ[env_name] = value
 
         for name in required_envs:
