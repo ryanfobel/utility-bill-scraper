@@ -14,27 +14,42 @@
 # ---
 
 # %% [markdown] tags=[]
+# [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryanfobel/utility-bill-scraper/blob/main/notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
 # [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
 #
 # # Introduction
 #
-# This notebook demonstrates downloading pdf statements and extracting data from a [Kitchener Utilities](https://www.kitchenerutilities.ca) account. You can launch an interactive version of this page by clicking on the badge at the top of the page.
+# This notebook demonstrates downloading pdf statements and extracting data from a [Kitchener Utilities](https://www.kitchenerutilities.ca) account. You can launch an interactive version of this page by clicking on one of the badges at the top of the page (Colab or Binder).
 #
-# ## Setup
+# ## Install dependencies
 #
-# Fill in your `username` and `password` below, then run all of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `monthly.csv` and the `*.pdf` statements).This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`.
+# The first time you run this notebook, you need to run the cell below to install some dependencies. Click on the cell below, then either click the play button or press `SHIFT`+`ENTER`. The notebook may promp you for inputs (e.g., authorization to conect to your google drive, username, password). If you are running the notebook in Google Colab, you will also need to restart the runtime afterwards by clicking `Runtime/Restart runtime` from the menu.
 
 # %%
-username = ""
-password = ""
+try:
+    pass
+except ModuleNotFoundError:
+    import subprocess
+    import sys
 
-# Plotting preferences
-bin_width = 0.9
-alpha = 0.5
-transparent = False
-bbox_inches = "tight"
-facecolor = "white"
+    cmd = (
+        f"{sys.executable} -m pip install --force-reinstall "
+        "git+https://github.com/ryanfobel/utility-bill-scraper.git@colab"
+    )
+    subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode("utf-8")
 
+from utility_bill_scraper import install_colab_dependencies
+
+install_colab_dependencies(
+    required_envs=["KITCHENER_UTILITIES_USER", "KITCHENER_UTILITIES_PASSWORD"]
+)
+
+# %% [markdown]
+# # Downloading data
+#
+# Run the rest of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `monthly.csv` and the `*.pdf` statements). This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`. Alternatively, if you're running this in Google Colab, the files will be automatically saved to your Google Drive in the folder `Google Drive/Colab Notebooks/data`.
+
+# %%
 # %matplotlib inline
 
 import datetime as dt
@@ -42,36 +57,35 @@ import os
 import shutil
 import sys
 
-# Update the path to include the src directory
-sys.path.insert(0, os.path.abspath(os.path.join("..", "..", "..", "src")))
-
 import matplotlib.pyplot as plt
 import numpy as np
 from dotenv import load_dotenv
 from matplotlib import rcParams
 
 import utility_bill_scraper.canada.on.kitchener_utilities as ku
+from utility_bill_scraper import install_colab_dependencies
+
+install_colab_dependencies(
+    required_envs=["KITCHENER_UTILITIES_USER", "KITCHENER_UTILITIES_PASSWORD"]
+)
+
+# Plotting preferences
+bin_width = 0.9
+alpha = 0.5
+transparent = False
+bbox_inches = "tight"
+facecolor = "white"
+rcParams.update({"figure.figsize": (12, 6)})
 
 # Load the `.env` file into the environment if it exists
 load_dotenv()
 
-rcParams.update({"figure.figsize": (12, 6)})
-
-# If we haven't set a username/password, try getting them from
-# environment variables.
-if not username:
-    username = os.getenv("KITCHENER_UTILITIES_USER")
-if not password:
-    password = os.getenv("KITCHENER_UTILITIES_PASSWORD")
-
-# Set the path where data is saved.
-data_path = os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data"))
-
-# Get google service account credentials (if the environment variable is set).
-google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
-
 api = ku.KitchenerUtilitiesAPI(
-    username, password, data_path, google_sa_credentials=google_sa_credentials
+    user=os.getenv("KITCHENER_UTILITIES_USER"),
+    password=os.getenv("KITCHENER_UTILITIES_PASSWORD"),
+    data_path=os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data")),
+    google_sa_credentials=os.getenv("GOOGLE_SA_CREDENTIALS"),
+    browser=os.getenv("BROWSER", "Firefox"),
 )
 
 # Get up to 24 statements (the most recent).
@@ -81,6 +95,8 @@ if updates is not None:
 api.history("monthly").tail()
 
 # %% [markdown]
+# # Plotting data
+#
 # ## Monthly consumption history
 
 # %%
@@ -138,7 +154,7 @@ plt.savefig(
 )
 
 # %% [markdown]
-# # CO2 emissions vs previous year
+# ## CO2 emissions vs previous year
 
 # %%
 n_years_history = 1
@@ -200,11 +216,12 @@ plt.savefig(
 # %% [markdown]
 # ## Save data as `downloads.zip` or print link to gdrive folder
 #
-# Generate a zip file with all of the data. `Right-click` on the file `downloads.zip` in the file browser on the left (it'll be in the `notebooks` folder). If `DATA_PATH` is a google drive link, print the url.
+# Generate a zip file with all of the data. `Right-click` on the file `downloads.zip` in the file browser on the left (it'll be in the `notebooks` folder). If `DATA_PATH` is a google drive link, print the url. If you're running this in Google Colab, the files will be automatically saved to your Google Drive in the folder `Google Drive/Colab Notebooks/data`.
 
 # %%
 from utility_bill_scraper import is_gdrive_path
 
+data_path = os.environ["DATA_PATH"]
 if is_gdrive_path(data_path):
     print(data_path)
 else:

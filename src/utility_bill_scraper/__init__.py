@@ -9,6 +9,7 @@ import random
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import traceback
@@ -170,6 +171,62 @@ def wait_for_element(func, seconds=5, *args, **kwargs):
         raise Timeout
 
     return wrapper
+
+
+def _run_cmd(cmd):
+    return subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode(
+        "utf-8"
+    )
+
+
+def install_colab_dependencies(required_envs, debug=False):
+    """Detect if we are running in a colab environment, and if so, install
+    necessary dependencies.
+
+    required_envs: list of environnment variable names require to run the
+        notebook. These will be loaded from a `.env` file in the user's google
+        drive if available; otherwise, the user will be propted for values, and
+        they will be saved to a `.env` file for future use.
+    """
+    if "google.colab" in sys.modules.keys():
+        output = ""
+        if not os.path.exists("/usr/bin/chromedriver"):
+            output += _run_cmd(f"apt-get update")
+            output += _run_cmd(f"apt install chromium-chromedriver")
+
+        # Force a version of pandas that is compatible with colab
+        if _run_cmd("python -c 'import pandas; print(pandas.__version__)'") != "1.1.5":
+            output += _run_cmd(f"{ sys.executable } -m pip install pandas==1.1.5")
+
+        if debug:
+            print(output)
+
+        # mount the user's google drive
+        from google.colab import drive
+
+        drive.mount("/content/drive")
+
+        os.environ["DATA_PATH"] = "/content/drive/MyDrive/Colab Notebooks/data"
+        os.environ["BROWSER"] = "Chrome"
+        dot_env_path = os.path.join(os.environ["DATA_PATH"], ".env")
+
+        from dotenv import load_dotenv
+
+        load_dotenv(dot_env_path)
+
+        def get_env(env_name):
+            """Check if the environment variable exists; otherwise prompt the
+            user and append it to the `.env` file."""
+
+            if not os.getenv(env_name):
+                print(f"Enter a value for { env_name }")
+                value = input()
+                with open(dot_env_path, "a") as f:
+                    f.write(f"{ env_name }={ value }\n")
+                os.environ[env_name] = value
+
+        for name in required_envs:
+            get_env(name)
 
 
 def wait_for_permission(func, seconds=5, *args, **kwargs):

@@ -7,7 +7,6 @@ import time
 
 import arrow
 import pandas as pd
-import numpy as np
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import (
     NoSuchElementException,
@@ -358,6 +357,7 @@ class KitchenerUtilitiesAPI(UtilityAPI):
                 ]
 
                 data = []
+                date = None
                 for row in rows:
                     row_data = [x.text for x in row[1:]]
                     if row_data[0] == "":
@@ -389,7 +389,7 @@ class KitchenerUtilitiesAPI(UtilityAPI):
                                 filepath = self.download_link(img, "pdf")
                                 shutil.move(filepath, new_filepath)
 
-                return data
+                return data, date
 
             self._get_header_nav_bar()["BILLING"].click()
             self._first_page()
@@ -411,14 +411,13 @@ class KitchenerUtilitiesAPI(UtilityAPI):
                 pages[i].click()
                 pages_downloaded += [i]
                 time.sleep(1)
-                page_data = get_data()
-                # If this page returned some data within the date range, add it
-                if len(page_data):
-                    data += page_data
-                # If there was no data within the date range and we alread have data,
-                # it means that any remaining pages must be prior to the start date;
-                # therefore we should stop.
-                elif len(data):
+                page_data, last_date = get_data()
+                data += page_data
+
+                # Because the statments are in reverse chronological order, we
+                # can stop as soon as we've checked a date that is prior to the
+                # start date.
+                if start_date and last_date < start_date:
                     break
         finally:
             self._close_driver()
