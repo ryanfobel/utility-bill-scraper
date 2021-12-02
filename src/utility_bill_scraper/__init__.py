@@ -1,6 +1,7 @@
 import datetime as dt
 import errno
 import functools
+import getpass
 import glob
 import io
 import json
@@ -24,6 +25,18 @@ from selenium.common.exceptions import (
 )
 
 from .google_drive_helpers import GoogleDriveHelper
+
+LIGHT_COLORMAP = [
+    (0.533, 0.741, 0.902),
+    (0.984, 0.698, 0.345),
+    (0.565, 0.804, 0.592),
+    (0.965, 0.667, 0.788),
+    (0.749, 0.647, 0.329),
+    (0.737, 0.6, 0.78),
+    (0.929, 0.867, 0.275),
+    (0.941, 0.494, 0.431),
+    (0.549, 0.549, 0.549),
+]
 
 # Natural gas emission factor
 # 119.58 lbs CO2/1000 cubic feet of natural gas
@@ -155,10 +168,6 @@ def is_gdrive_path(path):
         return False
 
 
-class Timeout(Exception):
-    pass
-
-
 def wait_for_element(func, seconds=5, *args, **kwargs):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -216,7 +225,10 @@ def install_colab_dependencies(required_envs, debug=False):
 
             if not os.getenv(env_name):
                 print(f"Enter a value for { env_name }")
-                value = input()
+                if "PASSWORD" in env_name.upper():
+                    value = getpass.getpass()
+                else:
+                    value = input()
                 with open(dot_env_path, "a") as f:
                     f.write(f"{ env_name }={ value }\n")
                 os.environ[env_name] = value
@@ -237,6 +249,10 @@ def wait_for_permission(func, seconds=5, *args, **kwargs):
         raise Timeout
 
     return wrapper
+
+
+class Timeout(Exception):
+    pass
 
 
 class UnsupportedFileType(Exception):

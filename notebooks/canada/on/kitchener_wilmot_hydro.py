@@ -13,100 +13,73 @@
 #     name: python3
 # ---
 
-# [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_wilmot_hydro.ipynb)
+# [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryanfobel/utility-bill-scraper/blob/main/notebooks%2Fcanada%2Fon%2Fkitchener_wilmot_hydro.ipynb)
 #
 # # Introduction
 #
-# This notebook demonstrates scraping of data from [Kitchener-Wilmot Hydro](https://www.kwhydro.on.ca) electricity bills. You can launch an interactive version of this page by clicking on the badge at the top of the page.
+# This notebook will help you to download `pdf` statements and data from a [Kitchener-Wilmot Hydro](https://www.kwhydro.on.ca) account. Launch an interactive version by clicking on the `Open in Colab` badge at the top of this page.
+
+# # Download data
 #
-# ## Setup
-#
-# Fill in your `username` and `password` below, then run all of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `monthly.csv` and the `*.pdf` statements).This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`.
+# To run the notebook, choose `Runtime/Run all` from the menu or press `CTRL`+`F9`. The notebook may promp you for inputs (e.g., authorization to conect to your google drive, username, password). If you're running this in Google Colab, the files will be automatically saved to your Google Drive in the folder `Google Drive/Colab Notebooks/data`.
 
 # +
-username = ""
-password = ""
+try:
+    pass
+except ModuleNotFoundError:
+    import subprocess
+    import sys
+
+    cmd = (
+        f"{sys.executable} -m pip install --upgrade --upgrade-strategy "
+        "only-if-needed "
+        "git+https://github.com/ryanfobel/utility-bill-scraper.git"
+    )
+    subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode("utf-8")
+
+from utility_bill_scraper import install_colab_dependencies
+
+install_colab_dependencies(required_envs=["KWHYDRO_USER", "KWHYDRO_PASSWORD"])
+
+# %matplotlib inline
+
+import datetime as dt
+import os
+import sys
+
+import matplotlib.pyplot as plt
+import numpy as np
+from cycler import cycler
+from dotenv import load_dotenv
+
+import utility_bill_scraper.canada.on.kitchener_wilmot_hydro as kwh
+from utility_bill_scraper import LIGHT_COLORMAP
 
 # Plotting preferences
+plt.rc("axes", prop_cycle=cycler("color", LIGHT_COLORMAP))
+plt.rc("figure", figsize=(12, 6))
 bin_width = 0.9
 alpha = 0.5
 transparent = False
 bbox_inches = "tight"
 facecolor = "white"
 
-# %matplotlib inline
-
-import datetime as dt
-import os
-import shutil
-
-import matplotlib.pyplot as plt
-import numpy as np
-from dotenv import load_dotenv
-from matplotlib import rcParams
-from cycler import cycler
-
-import utility_bill_scraper.canada.on.kitchener_wilmot_hydro as kwh
-
-# Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.
-def scale_rgb(colormap):
-    return [(r / 255.0, g / 255.0, b / 255.0) for r, g, b in colormap]
-
-
-light = scale_rgb(
-    [
-        (136, 189, 230),
-        (251, 178, 88),
-        (144, 205, 151),
-        (246, 170, 201),
-        (191, 165, 84),
-        (188, 153, 199),
-        (237, 221, 70),
-        (240, 126, 110),
-        (140, 140, 140),
-    ]
-)
-
-rcParams.update(
-    {
-        "figure.figsize": (12, 6),
-        "font.size": 12,
-        "axes.prop_cycle": cycler("color", light),
-    }
-)
-
 # Load the `.env` file into the environment if it exists
 load_dotenv()
 
-# If we haven't set a username/password, try getting them from
-# environment variables.
-if not username:
-    username = os.getenv("KWHYDRO_USER")
-if not password:
-    password = os.getenv("KWHYDRO_PASSWORD")
-
-# Set the path where data is saved.
-data_path = os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data"))
-
-# Get google service account credentials (if the environment variable is set).
-google_sa_credentials = os.getenv("GOOGLE_SA_CREDENTIALS")
-
-# Uncomment the following 2 lines for development
-# %load_ext autoreload
-# %autoreload 2
-
 api = kwh.KitchenerWilmotHydroAPI(
-    username,
-    password,
-    data_path,
-    google_sa_credentials=google_sa_credentials,
+    user=os.getenv("KWHYDRO_USER"),
+    password=os.getenv("KWHYDRO_PASSWORD"),
+    data_path=os.getenv("DATA_PATH", os.path.join("..", "..", "..", "data")),
+    google_sa_credentials=os.getenv("GOOGLE_SA_CREDENTIALS"),
+    browser=os.getenv("BROWSER", "Firefox"),
 )
 
 # Get up to 24 statements (the most recent).
-updates = api.update(24)
-if updates is not None:
-    print(f"{ len(updates) } statements_downloaded")
-api.history("monthly").tail()
+# updates = api.update(24)
+# if updates is not None:
+#     print(f"{ len(updates) } statements_downloaded")
+# api.history("monthly").tail()
 # -
 
 
@@ -117,12 +90,16 @@ df = api.history("monthly")
 
 plt.figure()
 df[["On Peak Consumption", "Mid Peak Consumption", "Off Peak Consumption"]].plot.bar(
-    stacked=True, width=bin_width, color=["#F07E6E", "#EDDD46", "#90CD97"]
+    stacked=True,
+    width=bin_width,
+    color=["#F07E6E", "#EDDD46", "#90CD97"],
+    figsize=(12, 6),
 )
 plt.ylim((0, None))
 plt.title("Monthly Electricity Consumption")
 plt.ylabel("kWh")
 plt.legend(["Off Peak", "Mid Peak", "On Peak", "Total"])
+os.makedirs("images", exist_ok=True)
 plt.savefig(
     os.path.join("images", "monthly_electricity_consumption.png"),
     bbox_inches=bbox_inches,
@@ -150,6 +127,7 @@ df["month"] = [int(x[5:7]) for x in df.index]
 (df.groupby("year").sum()["kgCO2"] / 1e3).plot.bar(width=bin_width)
 plt.title("Annual CO$_2$e emissions from electricity")
 plt.ylabel("tCO$_2$e")
+os.makedirs("images", exist_ok=True)
 plt.savefig(
     os.path.join("images", "annual_co2_emissions_electricity.png"),
     bbox_inches=bbox_inches,
@@ -189,6 +167,7 @@ ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.title("Monthly CO$_2$e emissions from electricity")
+os.makedirs("images", exist_ok=True)
 plt.savefig(
     os.path.join("images", "monthly_co2_emissions_electricity.png"),
     bbox_inches=bbox_inches,
@@ -215,22 +194,10 @@ ax = plt.gca()
 ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.title("Cumulative CO$_2$e emissions from electricity per year")
+os.makedirs("images", exist_ok=True)
 plt.savefig(
     os.path.join("images", "cumulative_co2_emissions_electricity.png"),
     bbox_inches=bbox_inches,
     transparent=transparent,
     facecolor=facecolor,
 )
-# -
-
-# ## Save data as `downloads.zip` or print link to gdrive folder
-#
-# Generate a zip file with all of the data. `Right-click` on the file `downloads.zip` in the file browser on the left (it'll be in the `notebooks` folder). If `DATA_PATH` is a google drive link, print the url.
-
-# +
-from utility_bill_scraper import is_gdrive_path
-
-if is_gdrive_path(data_path):
-    print(data_path)
-else:
-    print(shutil.make_archive(os.path.join(".", "download"), "zip", data_path))
