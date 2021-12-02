@@ -13,17 +13,16 @@
 #     name: python3
 # ---
 
-# %% [markdown] tags=[]
+# %% [markdown]
 # [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryanfobel/utility-bill-scraper/blob/main/notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
-# [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ryanfobel/utility-bill-scraper/main?labpath=notebooks%2Fcanada%2Fon%2Fkitchener_utilities.ipynb)
 #
 # # Introduction
 #
-# This notebook demonstrates downloading pdf statements and extracting data from a [Kitchener Utilities](https://www.kitchenerutilities.ca) account. You can launch an interactive version of this page by clicking on one of the badges at the top of the page (Colab or Binder).
+# This notebook will help you to download `pdf` statements and data from a [Kitchener Utilities](https://www.kitchenerutilities.ca) account. Launch an interactive version by clicking on the `Open in Colab` badge at the top of this page.
 #
 # ## Install dependencies
 #
-# The first time you run this notebook, you need to run the cell below to install some dependencies. Click on the cell below, then either click the play button or press `SHIFT`+`ENTER`. The notebook may promp you for inputs (e.g., authorization to conect to your google drive, username, password). If you are running the notebook in Google Colab, you will also need to restart the runtime afterwards by clicking `Runtime/Restart runtime` from the menu.
+# First we need to install some dependencies. Click on the cell below, then either click the play button or press `SHIFT`+`ENTER`. The notebook may promp you for inputs (e.g., authorization to conect to your google drive, username, password). If you are running this notebook in Google Colab, you will need to restart the runtime afterwards by clicking `Runtime/Restart runtime` from the menu.
 
 # %%
 try:
@@ -33,8 +32,8 @@ except ModuleNotFoundError:
     import sys
 
     cmd = (
-        f"{sys.executable} -m pip install --force-reinstall "
-        "git+https://github.com/ryanfobel/utility-bill-scraper.git@colab"
+        f"{sys.executable} -m pip install --upgrade --upgrade-strategy "
+        "only-if-needed mypackage utility-bill-scraper"
     )
     subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode("utf-8")
 
@@ -44,7 +43,7 @@ install_colab_dependencies(
     required_envs=["KITCHENER_UTILITIES_USER", "KITCHENER_UTILITIES_PASSWORD"]
 )
 
-# %% [markdown]
+# %% [markdown] tags=[] jp-MarkdownHeadingCollapsed=true
 # # Downloading data
 #
 # Run the rest of the cells in the notebook (press `SHIFT`+`ENTER` to run each cell individually or run the entire notebook by selecting `Run`/`Run all cells` from the menu. After the notebook finishes running (~1-5 minutes), you'll be able to download your data as a `download.zip` file (containing both a summary `monthly.csv` and the `*.pdf` statements). This file should appear in the file browser on the left and you can download it by `Right-clicking` on it and clicking `Download`. Alternatively, if you're running this in Google Colab, the files will be automatically saved to your Google Drive in the folder `Google Drive/Colab Notebooks/data`.
@@ -54,7 +53,6 @@ install_colab_dependencies(
 
 import datetime as dt
 import os
-import shutil
 import sys
 
 import matplotlib.pyplot as plt
@@ -96,7 +94,8 @@ api.history("monthly").tail()
 
 # %% [markdown]
 # # Plotting data
-#
+
+# %% [markdown]
 # ## Monthly consumption history
 
 # %%
@@ -212,17 +211,3 @@ plt.savefig(
     transparent=transparent,
     facecolor=facecolor,
 )
-
-# %% [markdown]
-# ## Save data as `downloads.zip` or print link to gdrive folder
-#
-# Generate a zip file with all of the data. `Right-click` on the file `downloads.zip` in the file browser on the left (it'll be in the `notebooks` folder). If `DATA_PATH` is a google drive link, print the url. If you're running this in Google Colab, the files will be automatically saved to your Google Drive in the folder `Google Drive/Colab Notebooks/data`.
-
-# %%
-from utility_bill_scraper import is_gdrive_path
-
-data_path = os.environ["DATA_PATH"]
-if is_gdrive_path(data_path):
-    print(data_path)
-else:
-    print(shutil.make_archive(os.path.join(".", "download"), "zip", data_path))
