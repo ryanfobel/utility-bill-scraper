@@ -61,7 +61,7 @@ from utility_bill_scraper import LIGHT_COLORMAP
 
 # Plotting preferences
 plt.rc("axes", prop_cycle=cycler("color", LIGHT_COLORMAP))
-plt.rc("figure", figsize=(12, 6))
+figsize = (12, 6)
 bin_width = 0.9
 alpha = 0.5
 transparent = False
@@ -94,7 +94,7 @@ api.history("monthly").tail()
 # %%
 df = api.history("monthly")
 
-plt.figure()
+plt.figure(figsize=figsize)
 plt.bar(df.index, df["Gas Consumption"], width=bin_width, alpha=alpha)
 plt.xticks(rotation=90)
 plt.title("Monthly Gas Consumption")
@@ -107,7 +107,7 @@ plt.savefig(
     facecolor=facecolor,
 )
 
-plt.figure()
+plt.figure(figsize=figsize)
 plt.bar(df.index, df["Water Consumption"], width=bin_width, alpha=alpha)
 plt.xticks(rotation=90)
 plt.title("Monthly Water Consumption")
@@ -130,7 +130,7 @@ df["kgCO2"] = df["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
 df["year"] = [int(x[0:4]) for x in df.index]
 df["month"] = [int(x[5:7]) for x in df.index]
 
-plt.figure()
+plt.figure(figsize=figsize)
 df.groupby("year").sum()["Gas Consumption"].plot.bar(width=bin_width, alpha=alpha)
 plt.ylabel("m$^3$")
 ylim = plt.ylim()
@@ -153,7 +153,7 @@ plt.savefig(
 # %%
 n_years_history = 1
 
-plt.figure()
+plt.figure(figsize=figsize)
 for year, df_year in df.groupby("year"):
     if year >= dt.datetime.utcnow().year - n_years_history:
         df_year.sort_values("month", inplace=True)
@@ -181,7 +181,7 @@ plt.savefig(
     facecolor=facecolor,
 )
 
-plt.figure()
+plt.figure(figsize=figsize)
 for year, df_year in df.groupby("year"):
     if year >= dt.datetime.utcnow().year - n_years_history:
         df_year.sort_values("month", inplace=True)

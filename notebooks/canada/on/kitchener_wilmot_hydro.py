@@ -57,7 +57,7 @@ from utility_bill_scraper import LIGHT_COLORMAP
 
 # Plotting preferences
 plt.rc("axes", prop_cycle=cycler("color", LIGHT_COLORMAP))
-plt.rc("figure", figsize=(12, 6))
+figsize = (12, 6)
 bin_width = 0.9
 alpha = 0.5
 transparent = False
@@ -93,7 +93,7 @@ df[["On Peak Consumption", "Mid Peak Consumption", "Off Peak Consumption"]].plot
     stacked=True,
     width=bin_width,
     color=["#F07E6E", "#EDDD46", "#90CD97"],
-    figsize=(12, 6),
+    figsize=figsize,
 )
 plt.ylim((0, None))
 plt.title("Monthly Electricity Consumption")
@@ -120,7 +120,7 @@ plt.savefig(
 
 carbon_intensity_kgCO2_per_kwh = 0.077
 
-plt.figure()
+plt.figure(figsize=figsize)
 df["kgCO2"] = df["Total Consumption"] * carbon_intensity_kgCO2_per_kwh
 df["year"] = [int(x[0:4]) for x in df.index]
 df["month"] = [int(x[5:7]) for x in df.index]
@@ -148,7 +148,7 @@ print(
 # +
 n_years_history = 1
 
-plt.figure()
+plt.figure(figsize=figsize)
 for year, df_year in df.groupby("year"):
     if year >= dt.datetime.utcnow().year - n_years_history:
         df_year.sort_values("month", inplace=True)
@@ -175,7 +175,7 @@ plt.savefig(
     facecolor=facecolor,
 )
 
-plt.figure()
+plt.figure(figsize=figsize)
 for year, df_year in df.groupby("year"):
     if year >= dt.datetime.utcnow().year - n_years_history:
         df_year.sort_values("month", inplace=True)
