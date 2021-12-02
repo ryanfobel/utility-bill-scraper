@@ -33,9 +33,11 @@ except ModuleNotFoundError:
 
     cmd = (
         f"{sys.executable} -m pip install --upgrade --upgrade-strategy "
-        "only-if-needed mypackage utility-bill-scraper"
+        "only-if-needed "
+        "git+https://github.com/ryanfobel/utility-bill-scraper.git"
     )
     subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True).decode("utf-8")
+
 
 from utility_bill_scraper import install_colab_dependencies
 
@@ -58,7 +60,6 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from dotenv import load_dotenv
-from matplotlib import rcParams
 
 import utility_bill_scraper.canada.on.kitchener_utilities as ku
 from utility_bill_scraper import install_colab_dependencies
@@ -73,7 +74,6 @@ alpha = 0.5
 transparent = False
 bbox_inches = "tight"
 facecolor = "white"
-rcParams.update({"figure.figsize": (12, 6)})
 
 # Load the `.env` file into the environment if it exists
 load_dotenv()
@@ -101,30 +101,17 @@ api.history("monthly").tail()
 # %%
 df = api.history("monthly")
 
-plt.figure()
+plt.figure(figsize=(12, 6))
 plt.bar(df.index, df["Gas Consumption"], width=bin_width, alpha=alpha)
 plt.xticks(rotation=90)
 plt.title("Monthly Gas Consumption")
 plt.ylabel("m$^3$")
-os.makedirs("images", exist_ok=True)
-plt.savefig(
-    os.path.join("images", "monthly_gas_consumption.png"),
-    bbox_inches=bbox_inches,
-    transparent=transparent,
-    facecolor=facecolor,
-)
 
-plt.figure()
+plt.figure(figsize=(12, 6))
 plt.bar(df.index, df["Water Consumption"], width=bin_width, alpha=alpha)
 plt.xticks(rotation=90)
 plt.title("Monthly Water Consumption")
 plt.ylabel("m$^3$")
-plt.savefig(
-    os.path.join("images", "monthly_water_consumption.png"),
-    bbox_inches=bbox_inches,
-    transparent=transparent,
-    facecolor=facecolor,
-)
 
 # %% [markdown]
 # ## Annual CO2 emissions
@@ -136,7 +123,7 @@ df["kgCO2"] = df["Gas Consumption"] * GAS_KGCO2_PER_CUBIC_METER
 df["year"] = [int(x[0:4]) for x in df.index]
 df["month"] = [int(x[5:7]) for x in df.index]
 
-plt.figure()
+plt.figure(figsize=(12, 6))
 df.groupby("year").sum()["Gas Consumption"].plot.bar(width=bin_width, alpha=alpha)
 plt.ylabel("m$^3$")
 ylim = plt.ylim()
@@ -145,12 +132,6 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Annual CO$_2$e emissions from natural gas")
-plt.savefig(
-    os.path.join("images", "annual_co2_emissions_natural_gas.png"),
-    bbox_inches=bbox_inches,
-    transparent=transparent,
-    facecolor=facecolor,
-)
 
 # %% [markdown]
 # ## CO2 emissions vs previous year
@@ -158,7 +139,7 @@ plt.savefig(
 # %%
 n_years_history = 1
 
-plt.figure()
+plt.figure(figsize=(12, 6))
 for year, df_year in df.groupby("year"):
     if year >= dt.datetime.utcnow().year - n_years_history:
         df_year.sort_values("month", inplace=True)
@@ -178,14 +159,8 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Monthly CO$_2$e emissions from natural gas")
-plt.savefig(
-    os.path.join("images", "monthly_co2_emissions_natural_gas.png"),
-    bbox_inches=bbox_inches,
-    transparent=transparent,
-    facecolor=facecolor,
-)
 
-plt.figure()
+plt.figure(figsize=(12, 6))
 for year, df_year in df.groupby("year"):
     if year >= dt.datetime.utcnow().year - n_years_history:
         df_year.sort_values("month", inplace=True)
@@ -205,9 +180,3 @@ ax2 = ax.twinx()
 plt.ylabel("tCO$_2$e")
 plt.ylim([GAS_KGCO2_PER_CUBIC_METER * y / 1e3 for y in ylim])
 plt.title("Cumulative CO$_2$e emissions from natural gas per year")
-plt.savefig(
-    os.path.join("images", "cumulative_co2_emissions_natural_gas.png"),
-    bbox_inches=bbox_inches,
-    transparent=transparent,
-    facecolor=facecolor,
-)
