@@ -76,10 +76,10 @@ api = kwh.KitchenerWilmotHydroAPI(
 )
 
 # Get up to 24 statements (the most recent).
-# updates = api.update(24)
-# if updates is not None:
-#     print(f"{ len(updates) } statements_downloaded")
-# api.history("monthly").tail()
+updates = api.update(24)
+if updates is not None:
+    print(f"{ len(updates) } statements_downloaded")
+api.history("monthly").tail()
 # -
 
 
