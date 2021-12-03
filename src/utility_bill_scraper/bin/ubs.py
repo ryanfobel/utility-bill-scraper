@@ -128,6 +128,8 @@ def main():
     if args.subcommand == "update":
         user = args.user or os.getenv("USER")
         password = args.password or os.getenv("PASSWORD")
+        browser = args.browser or os.getenv("BROWSER", "Firefox")
+        print(f"BROWSER: { browser }")
 
         # Default for save statements is True
         save_statements = os.getenv("SAVE_STATEMENTS", True)
@@ -150,6 +152,7 @@ def main():
             save_statements,
             max_downloads,
             google_sa_credentials,
+            browser,
         )
     elif args.subcommand == "export":
         output = args.output or os.getenv("OUTPUT")
