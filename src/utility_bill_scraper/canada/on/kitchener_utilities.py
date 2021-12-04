@@ -22,8 +22,7 @@ from utility_bill_scraper import (
 )
 
 
-def get_name():
-    return "Kitchener Utilities"
+NAME = "Kitchener Utilities"
 
 
 def get_summary(soup):
@@ -228,7 +227,7 @@ def get_gas_rates(soup):
 
 
 class KitchenerUtilitiesAPI(UtilityAPI):
-    name = get_name()
+    name = NAME
 
     def __init__(
         self,

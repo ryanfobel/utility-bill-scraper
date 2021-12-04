@@ -36,8 +36,7 @@ re_consumption = (
 )
 
 
-def get_name():
-    return "Kitchener-Wilmot Hydro"
+NAME = "Kitchener-Wilmot Hydro"
 
 
 def get_consumption(soup):
@@ -242,7 +241,7 @@ def get_amount_due(soup):
 
 
 class KitchenerWilmotHydroAPI(UtilityAPI):
-    name = get_name()
+    name = NAME
 
     def __init__(
         self,
@@ -400,7 +399,7 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
 
         date = get_billing_date(soup)
         amount_due = get_amount_due(soup)
-        "%s - %s - $%.2f.pdf" % (date, get_name(), amount_due)
+        "%s - %s - $%.2f.pdf" % (date, self.name, amount_due)
 
         rates = get_rates(soup)
         consuption = get_consumption(soup)

@@ -392,8 +392,8 @@ class UtilityAPI:
                 "resolution must be one of: "
                 + f"{ ', '.join(self._resolutions_available) }."
             )
-
         if resolution == "monthly":
+            self._monthly_history.index = pd.to_datetime(self._monthly_history.index)
             return self._monthly_history
         elif resolution == "hourly":
             return self._hourly_history
@@ -533,6 +533,7 @@ class UtilityAPI:
                     traceback.print_exc()
         self._monthly_history = self._monthly_history.append(df_new_rows)
         self._monthly_history.sort_index(inplace=True)
+        self._monthly_history.index = pd.to_datetime(self._monthly_history.index)
         self._update_history()
         return df_new_rows
 
