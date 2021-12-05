@@ -272,7 +272,7 @@ class UtilityAPI:
         file_ext=".csv",
         headless=True,
         browser="Firefox",
-        timeout=10,
+        timeout=30,
         save_statements=True,
         google_sa_credentials=None,
     ):
