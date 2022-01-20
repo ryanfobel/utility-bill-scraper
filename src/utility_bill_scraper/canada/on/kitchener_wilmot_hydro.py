@@ -267,9 +267,8 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
             google_sa_credentials=google_sa_credentials,
         )
         self._resolutions_available.append("hourly")
-        self._hourly_data_directory = os.path.join(
-            self._data_path, self.name, "hourly data"
-        )
+        if not hasattr(self, "_hourly_history"):
+            self._hourly_history = pd.DataFrame()
 
     def _login(self):
         self._driver.get("https://www3.kwhydro.on.ca/app/login.jsp")
@@ -281,6 +280,8 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
 
     def download_hourly_data(self, start_date=None, end_date=None):
         self._init_driver()
+
+        df_new_rows = pd.DataFrame()
 
         try:
             self._login()
@@ -304,15 +305,14 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
                 date_range = pd.date_range(start_date, end_date, freq="M")
             date_range = [x.date() for x in date_range]
 
-            os.makedirs(self._hourly_data_directory, exist_ok=True)
+            last_update = None
+            if len(self._hourly_history):
+                last_update = self._hourly_history.index[-1].date()
+
             for date in date_range:
-                new_filepath = os.path.join(
-                    self._hourly_data_directory, "%s.csv" % (date.isoformat())
-                )
-
-                if os.path.exists(new_filepath):
+                if last_update and date <= last_update:
                     continue
-
+                
                 print(
                     "Downloading hourly data for %d-%02d-01 to %d-%02d-%02d..."
                     % (date.year, date.month, date.year, date.month, date.day)
@@ -371,25 +371,23 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
 
                 # Create a new dataframe to store the reformatted data
                 df = pd.DataFrame({"kWh": np.zeros(len(index))}, index=index)
+                df.index = pd.to_datetime(df.index)
+                df.index.name = "Datetime"
 
                 # Reformat the data indexed by a timestamp
                 for i, row in df_csv.iterrows():
                     df.loc[row[0], "kWh"] = df_csv.loc[i][1:25].values
 
-                # If we have existing files from the current month, delete them
-                files = glob.glob(
-                    os.path.join(
-                        self._hourly_data_directory,
-                        "%d-%02d-*.csv" % (date.year, date.month),
-                    )
-                )
-                for f in files:
-                    os.remove(f)
-
-                # Save the reformatted data
-                df.to_csv(new_filepath)
+                # Append the reformatted data
+                df_new_rows = df_new_rows.append(df[df.index.date > last_update])
         finally:
             self._close_driver()
+
+        if len(df_new_rows):
+            self._hourly_history = self._hourly_history.append(df_new_rows)
+            self._hourly_history.index = pd.to_datetime(self._hourly_history.index)
+            self._update_history()
+        return df_new_rows
 
     def extract_data(self, pdf):
         html_file = pdf_to_html(pdf)

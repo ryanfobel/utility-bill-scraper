@@ -324,19 +324,25 @@ class UtilityAPI:
             except IndexError:  # Folder doesn't exist
                 utility_folder = self._gdh.create_subfolder(folder_id, self.name)
 
-            try:
-                data_file = self._gdh.get_file_in_folder(
-                    utility_folder["id"], "monthly" + self._file_ext
-                )
-                file = self._gdh.download_file(
-                    data_file["id"],
-                    os.path.join(self._temp_download_dir, "monthly" + self._file_ext),
-                )
-                self._monthly_history = pd.read_csv(
-                    os.path.join(self._temp_download_dir, "monthly" + self._file_ext)
-                ).set_index("Date")
-            except IndexError:  # File doesn't exist
-                self._monthly_history = pd.DataFrame()
+            def get_history_file(resolution, index_col):
+                try:
+                    data_file = self._gdh.get_file_in_folder(
+                        utility_folder["id"], resolution + self._file_ext
+                    )
+                    file = self._gdh.download_file(
+                        data_file["id"],
+                        os.path.join(self._temp_download_dir, resolution + self._file_ext),
+                    )
+                    return pd.read_csv(
+                        os.path.join(self._temp_download_dir, resolution + self._file_ext)
+                    ).set_index(index_col)
+                except IndexError:  # File doesn't exist
+                    return pd.DataFrame()
+
+            self._monthly_history = get_history_file("monthly", "Date")
+            hourly_history = get_history_file("hourly", "Datetime")
+            if len(hourly_history):
+                self._hourly_history = hourly_history
 
         elif os.path.exists(
             os.path.join(self._data_path, self.name, "monthly" + self._file_ext)
@@ -345,6 +351,17 @@ class UtilityAPI:
             self._monthly_history = pd.read_csv(
                 os.path.join(self._data_path, self.name, "monthly" + self._file_ext)
             ).set_index("Date")
+
+            if os.path.exists(
+                os.path.join(self._data_path, self.name, "hourly" + self._file_ext)
+            ):
+                self._hourly_history = pd.read_csv(
+                    os.path.join(self._data_path, self.name, "hourly" + self._file_ext)
+                ).set_index("Datetime")
+
+        self._monthly_history.index = pd.to_datetime(self._monthly_history.index)
+        if hasattr(self, "_hourly_history"):
+            self._hourly_history.index = pd.to_datetime(self._hourly_history.index)
 
     def _init_driver(self):
         if self._browser == "Chrome":
@@ -393,7 +410,6 @@ class UtilityAPI:
                 + f"{ ', '.join(self._resolutions_available) }."
             )
         if resolution == "monthly":
-            self._monthly_history.index = pd.to_datetime(self._monthly_history.index)
             return self._monthly_history
         elif resolution == "hourly":
             return self._hourly_history
@@ -540,7 +556,7 @@ class UtilityAPI:
     def _update_history(self):
         # Update history
 
-        # If `data_path` is a google drive folder, upload the monthly data file.
+        # If `data_path` is a google drive folder, upload the history file(s).
         if is_gdrive_path(self._data_path):
             folder_id = self._data_path.split("/")[-1]
             try:
@@ -548,24 +564,31 @@ class UtilityAPI:
             except IndexError:
                 utility_folder = self._gdh.create_subfolder(folder_id, self.name)
 
+            def upload_file(resolution):
+                try:
+                    data_file = self._gdh.get_file_in_folder(
+                        utility_folder["id"], resolution + self._file_ext
+                    )
+                    self._gdh.upload_file(
+                        data_file["id"],
+                        os.path.join(self._temp_download_dir, resolution + self._file_ext),
+                    )
+                except IndexError:
+                    data_file = self._gdh.create_file_in_folder(
+                        utility_folder["id"],
+                        os.path.join(self._temp_download_dir, resolution + self._file_ext),
+                    )
+
             self._monthly_history.to_csv(
                 os.path.join(self._temp_download_dir, "monthly" + self._file_ext)
             )
+            upload_file("monthly")
 
-            try:
-                data_file = self._gdh.get_file_in_folder(
-                    utility_folder["id"], "monthly" + self._file_ext
+            if hasattr(self, "_hourly_history"):
+                self._hourly_history.to_csv(
+                    os.path.join(self._temp_download_dir, "hourly" + self._file_ext)
                 )
-                self._gdh.upload_file(
-                    data_file["id"],
-                    os.path.join(self._temp_download_dir, "monthly" + self._file_ext),
-                )
-            except IndexError:
-                data_file = self._gdh.create_file_in_folder(
-                    utility_folder["id"],
-                    os.path.join(self._temp_download_dir, "monthly" + self._file_ext),
-                )
-
+                upload_file("hourly")
         else:
             # Create directories if necessary
             os.makedirs(os.path.join(self._data_path, self.name), exist_ok=True)
@@ -574,3 +597,8 @@ class UtilityAPI:
             self._monthly_history.to_csv(
                 os.path.join(self._data_path, self.name, "monthly" + self._file_ext)
             )
+
+            if hasattr(self, "_hourly_history"):
+                self._hourly_history.to_csv(
+                    os.path.join(self._data_path, self.name, "hourly" + self._file_ext)
+                )
