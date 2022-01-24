@@ -312,7 +312,7 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
             for date in date_range:
                 if last_update and date <= last_update:
                     continue
-                
+
                 print(
                     "Downloading hourly data for %d-%02d-01 to %d-%02d-%02d..."
                     % (date.year, date.month, date.year, date.month, date.day)

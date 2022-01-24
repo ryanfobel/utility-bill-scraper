@@ -331,10 +331,14 @@ class UtilityAPI:
                     )
                     file = self._gdh.download_file(
                         data_file["id"],
-                        os.path.join(self._temp_download_dir, resolution + self._file_ext),
+                        os.path.join(
+                            self._temp_download_dir, resolution + self._file_ext
+                        ),
                     )
                     return pd.read_csv(
-                        os.path.join(self._temp_download_dir, resolution + self._file_ext)
+                        os.path.join(
+                            self._temp_download_dir, resolution + self._file_ext
+                        )
                     ).set_index(index_col)
                 except IndexError:  # File doesn't exist
                     return pd.DataFrame()
@@ -571,12 +575,16 @@ class UtilityAPI:
                     )
                     self._gdh.upload_file(
                         data_file["id"],
-                        os.path.join(self._temp_download_dir, resolution + self._file_ext),
+                        os.path.join(
+                            self._temp_download_dir, resolution + self._file_ext
+                        ),
                     )
                 except IndexError:
                     data_file = self._gdh.create_file_in_folder(
                         utility_folder["id"],
-                        os.path.join(self._temp_download_dir, resolution + self._file_ext),
+                        os.path.join(
+                            self._temp_download_dir, resolution + self._file_ext
+                        ),
                     )
 
             self._monthly_history.to_csv(
