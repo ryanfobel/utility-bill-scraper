@@ -379,7 +379,10 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
                     df.loc[row[0], "kWh"] = df_csv.loc[i][1:25].values
 
                 # Append the reformatted data
-                df_new_rows = df_new_rows.append(df[df.index.date > last_update])
+                if last_update:
+                    df_new_rows = df_new_rows.append(df[df.index.date > last_update])
+                else:
+                    df_new_rows = df_new_rows.append(df)
         finally:
             self._close_driver()
 
