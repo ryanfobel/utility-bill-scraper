@@ -30,14 +30,25 @@ def get_summary(soup):
         return tag.name == "div" and tag.decode().find("SEQ-ID") >= 0
 
     def find_account_summary(tag):
-        return tag.name == "span" and tag.decode().find("Your Account Summary") >= 0
+        return tag.name == "div" and tag.decode().find("Your Account Summary") >= 0
 
-    summary_fields = format_fields(soup.find_all(find_account_summary)[0].contents)
-    summary_data = format_fields(
-        soup.find_all(find_seq_id)[0].next_sibling.contents[0].contents
+    keys = [
+        x.contents[0].strip().replace(":", "")
+        for x in soup.find(find_account_summary).contents
+    ]
+    values = format_fields(
+        [x.contents[0].strip() for x in soup.find(find_seq_id).contents[1:]]
     )
 
-    summary_dict = dict(zip(summary_fields[1:], summary_data))
+    # Invoices prior to 2022-02 have a slightly different format
+    if type(keys) is not list or len(keys) <= 1:
+        keys = [
+            x.replace(":", "").strip()
+            for x in soup.find(find_account_summary).span.contents[::2]
+        ]
+        values = format_fields(soup.find(find_seq_id).next_sibling.contents[0].contents)
+
+    summary_dict = dict(zip(keys[1:], values))
 
     def find_charges(name):
         def find_matching_div(tag):
@@ -61,28 +72,55 @@ def get_summary(soup):
 
 
 def get_water_consumption(soup):
-    def find_total_consumption(tag):
-        return tag.name == "div" and tag.decode().find("Total Consumption") >= 0
+    def _get_water_consumption_pre_2022_02(soup):
+        def find_total_consumption(tag):
+            return tag.name == "div" and tag.decode().find("Total Consumption") >= 0
 
-    div_list = soup.find_all(find_total_consumption)
+        div_list = soup.find_all(find_total_consumption)
 
-    # Find the div containing 3 fields (gas has an extra
-    # 'Billing Conversion Multiplier'). Note that it is possible to have
-    # more than one consumption section.
-    tags = [x for x in div_list if len(format_fields(x.contents[0])) == 3]
-    assert len(tags) == 1
-    tag = tags[0]
+        # Find the div containing 3 fields (gas has an extra
+        # 'Billing Conversion Multiplier'). Note that it is possible to have
+        # more than one consumption section.
+        tags = [x for x in div_list if len(format_fields(x.contents[0])) == 3]
+        assert len(tags) == 1
+        tag = tags[0]
 
-    # Extract the top pixel coordinate.
-    match = re.search(r"top:(?P<top>\d+)px", tag.decode())
-    top = match.groups()[0]
+        # Extract the top pixel coordinate.
+        match = re.search(r"top:(?P<top>\d+)px", tag.decode())
+        top = match.groups()[0]
 
-    # Match all divs with the same top pixel coordinate.
-    def find_matching_top(tag):
-        return tag.name == "div" and tag.decode().find("top:%spx" % top) >= 0
+        # Match all divs with the same top pixel coordinate.
+        def find_matching_top(tag):
+            return tag.name == "div" and tag.decode().find("top:%spx" % top) >= 0
 
-    divs = [format_fields(x.contents[0]) for x in soup.find_all(find_matching_top)]
-    return dict(zip(divs[0], divs[2]))
+        divs = [format_fields(x.contents[0]) for x in soup.find_all(find_matching_top)]
+        return dict(zip(divs[0], divs[2]))
+
+    def _get_water_consumption(soup):
+        def find_total_consumption(tag):
+            return (
+                tag.name == "div"
+                and tag.decode().find("Total Consumption") >= 0
+                and tag.decode().find("Water") >= 0
+            )
+
+        tag = soup.find(find_total_consumption)
+
+        # Extract the top pixel coordinate.
+        match = re.search(r"top:(?P<top>\d+)px", tag.decode())
+        top = match.groups()[0]
+
+        tag = soup.find_all(style=re.compile("top:%spx" % top))[0]
+        keys = [x.contents[0].strip() for x in tag.contents][:3]
+
+        tag = soup.find_all(style=re.compile("top:%spx" % top))[2]
+        values = format_fields([x.strip() for x in tag.span.contents[0::2]])
+        return dict(zip(keys, values))
+
+    try:
+        return _get_water_consumption(soup)
+    except:
+        return _get_water_consumption_pre_2022_02(soup)
 
 
 def get_water_and_sewer_charges(soup):
@@ -131,29 +169,56 @@ def get_water_rates(soup):
 
 
 def get_gas_consumption(soup):
-    def find_total_consumption(tag):
-        return tag.name == "div" and tag.decode().find("Total Consumption") >= 0
+    def _get_gas_consumption(soup):
+        def find_total_consumption(tag):
+            return (
+                tag.name == "div"
+                and tag.decode().find("Total Consumption") >= 0
+                and tag.decode().find("Gas") >= 0
+            )
 
-    div_list = soup.find_all(find_total_consumption)
+        tag = soup.find(find_total_consumption)
 
-    # Find divs containing 4 fields (gas has an extra
-    # 'Billing Conversion Multiplier'). Note that it is possible to have
-    # more than one consumption section.
-    tags = [x for x in div_list if len(format_fields(x.contents[0])) > 3]
-    assert len(tags) == 1
-    tag = tags[0]
+        # Extract the top pixel coordinate.
+        match = re.search(r"top:(?P<top>\d+)px", tag.decode())
+        top = match.groups()[0]
 
-    # Extract the top pixel coordinate.
-    match = re.search(r"top:(?P<top>\d+)px", tag.decode())
-    top = match.groups()[0]
+        tag = soup.find_all(style=re.compile("top:%spx" % top))[2]
+        keys = [x.contents[0].strip() for x in tag.contents][:3]
 
-    # Match all divs with the same top pixel coordinate.
-    def find_matching_top(tag):
-        return tag.name == "div" and tag.decode().find("top:%spx" % top) >= 0
+        tag = soup.find_all(style=re.compile("top:%spx" % top))[1]
+        values = format_fields([x.strip() for x in tag.span.contents[0::2]])
+        return dict(zip(keys, values))
 
-    divs = [format_fields(x.contents[0]) for x in soup.find_all(find_matching_top)]
+    def _get_gas_consumption_pre_2022_02(soup):
+        def find_total_consumption(tag):
+            return tag.name == "div" and tag.decode().find("Total Consumption") >= 0
 
-    return dict(zip(divs[0], divs[2]))
+        div_list = soup.find_all(find_total_consumption)
+
+        # Find divs containing 4 fields (gas has an extra
+        # 'Billing Conversion Multiplier'). Note that it is possible to have
+        # more than one consumption section.
+        tags = [x for x in div_list if len(format_fields(x.contents[0])) > 3]
+        assert len(tags) == 1
+        tag = tags[0]
+
+        # Extract the top pixel coordinate.
+        match = re.search(r"top:(?P<top>\d+)px", tag.decode())
+        top = match.groups()[0]
+
+        # Match all divs with the same top pixel coordinate.
+        def find_matching_top(tag):
+            return tag.name == "div" and tag.decode().find("top:%spx" % top) >= 0
+
+        divs = [format_fields(x.contents[0]) for x in soup.find_all(find_matching_top)]
+
+        return dict(zip(divs[0], divs[2]))
+
+    try:
+        return _get_gas_consumption(soup)
+    except:
+        return _get_gas_consumption_pre_2022_02(soup)
 
 
 def get_gas_charges(soup):
@@ -517,6 +582,6 @@ class KitchenerUtilitiesAPI(UtilityAPI):
             result["Total"] = result.pop("Total Due")
         else:
             raise Exception("Couldn't find amount due!")
-        result["Date"] = str(arrow.get(result.pop("Issue Date"), "MMM DD YYYY").date())
+        result["Date"] = arrow.get(result.pop("Issue Date"), "MMM DD YYYY").date()
 
         return result

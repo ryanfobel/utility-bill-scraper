@@ -552,8 +552,8 @@ class UtilityAPI:
                 except Exception:
                     traceback.print_exc()
         self._monthly_history = self._monthly_history.append(df_new_rows)
-        self._monthly_history.sort_index(inplace=True)
         self._monthly_history.index = pd.to_datetime(self._monthly_history.index)
+        self._monthly_history.sort_index(inplace=True)
         self._update_history()
         return df_new_rows
 
