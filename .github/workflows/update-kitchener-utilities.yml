@@ -19,7 +19,7 @@ jobs:
     - name: Install poetry
       uses: abatilo/actions-poetry@v2.0.0
       with:
-        poetry-version: 1.1.0
+        poetry-version: 1.2.0
     - name: Install latest gecko driver
       run: |
         pip install get-gecko-driver
