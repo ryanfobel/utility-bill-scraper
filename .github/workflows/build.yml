@@ -62,7 +62,7 @@ jobs:
         poetry run black . --check
     - name: Install latest gecko driver
       run: |
-        pip install get-gecko-driver
+        pip install git+https://github.com/zaironjacobs/get-gecko-driver@main#egg=get_gecko_driver
         get-gecko-driver --download-latest --extract
     - name: Test with pytest
       env:
