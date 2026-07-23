@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.by import By
 
 from utility_bill_scraper import (
     Timeout,
@@ -271,12 +272,10 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
             self._hourly_history = pd.DataFrame()
 
     def _login(self):
-        self._driver.get("https://www3.kwhydro.on.ca/app/login.jsp")
-        self._driver.find_element_by_id("accessCode").send_keys(self._user)
-        self._driver.find_element_by_id("password").send_keys(self._password)
-        self._driver.find_element_by_xpath(
-            '//*[@id="login-form"]/div[3]/button'
-        ).click()
+        self._driver.get("https://myaccount.enovapower.com/app/login.jsp")
+        self._driver.find_element(By.ID, "accessCode").send_keys(self._user)
+        self._driver.find_element(By.ID, "password").send_keys(self._password)
+        self._driver.find_element(By.ID, "login_btn").click()
 
     def download_hourly_data(self, start_date=None, end_date=None):
         self._init_driver()
@@ -298,11 +297,11 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
                 end_date = arrow.get().date()
 
             if end_date > start_date and end_date > yesterday:
-                date_range = pd.date_range(start_date, yesterday, freq="M").append(
+                date_range = pd.date_range(start_date, yesterday, freq="ME").union(
                     pd.DatetimeIndex([yesterday])
                 )
             else:
-                date_range = pd.date_range(start_date, end_date, freq="M")
+                date_range = pd.date_range(start_date, end_date, freq="ME")
             date_range = [x.date() for x in date_range]
 
             last_update = None
@@ -321,17 +320,46 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
                 # Wait a random period between requests so that we don't get blocked
                 time.sleep(5 + random.random() * 5)
 
-                url = (
-                    "https://www3.kwhydro.on.ca/app/capricorn?para=smartMeterConsum&inquiryType=hydro"
-                    "&fromYear=%d&fromMonth=%02d&fromDay=%02d&toYear=%d&toMonth=%02d&toDay=%02d"
-                    % (date.year, date.month, 1, date.year, date.month, date.day)
-                )
+                # Navigate directly to the Electric Downloads page (Green Button Downloads)
+                # This is a sub-tab within the Smart Meter section
+                url = "https://myaccount.enovapower.com/app/capricorn?para=greenButtonPromptV3&inquiryType=electric&tab=GBDMD&deviceLandingPage=GBDMD"
                 self._driver.get(url)
+
+                # Wait for the date input fields to be present
+                from selenium.webdriver.support.ui import WebDriverWait
+                from selenium.webdriver.support import expected_conditions as EC
+
+                wait = WebDriverWait(self._driver, self._timeout)
+                wait.until(EC.presence_of_element_located((By.ID, "GB_fromDate")))
+
+                # Set the date range in the Electric Downloads section (Green Button section)
+                # Format dates as MM/DD/YYYY
+                from_date_str = "%02d/01/%d" % (date.month, date.year)
+                to_date_str = "%02d/%02d/%d" % (date.month, date.day, date.year)
+
+                # Set the visible date fields
+                from_date_field = self._driver.find_element(By.ID, "GB_fromDate")
+                from_date_field.clear()
+                from_date_field.send_keys(from_date_str)
+
+                to_date_field = self._driver.find_element(By.ID, "GB_toDate")
+                to_date_field.clear()
+                to_date_field.send_keys(to_date_str)
+
+                # Set to Hourly granularity
+                # The radio button is hidden inside a Bootstrap button group, so click the label instead
+                hourly_labels = self._driver.find_elements(By.XPATH, '//label[contains(@class, "btn") and .//input[@name="hourlyOrDaily"][@value="Hourly"]]')
+                if hourly_labels:
+                    self._driver.execute_script("arguments[0].scrollIntoView(true);", hourly_labels[0])
+                    time.sleep(0.5)
+                    hourly_labels[0].click()
+
+                time.sleep(1)  # Brief wait after setting options
 
                 def is_valid_date_range():
                     valid_date_range = True
                     try:
-                        valid_date_range = not self._driver.find_element_by_class_name(
+                        valid_date_range = not self._driver.find_element(By.CLASS_NAME,
                             "alert.alert-danger"
                         ).text.startswith(
                             "You are not authorized to view the selected date range."
@@ -348,14 +376,71 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
                 # Wait a random period between requests so that we don't get blocked
                 time.sleep(5 + random.random() * 5)
 
-                filepath = self.download_link(
-                    self._driver.find_element_by_id("download"), "csv"
-                )
+                # Wait a bit longer to ensure data is fully loaded before downloading
+                time.sleep(3)
+
+                # Click the SPREADSHEET download button (not the chart download button)
+                # This is in the "Electric Downloads" section of the Smart Meter page
+                download_button = self._driver.find_element(By.ID, "DownloadToSpreadsheetButton")
+                download_button.click()
+
+                # Wait for the CSV file to be downloaded
+                # Enova downloads files named like "SmartMeter8493100000_YYYY-MM-DDHH.MM.SS.csv"
+                import glob
+                t_start = time.time()
+                filepath = None
+                last_size = 0
+                stable_count = 0
+
+                while time.time() - t_start < self._timeout:
+                    # Look for CSV files (excluding Chrome temp files)
+                    files = [f for f in glob.glob(os.path.join(self._temp_download_dir, "*.csv"))
+                             if not f.endswith('.crdownload') and not f.endswith('.tmp')]
+
+                    if files:
+                        # Sort by modification time (most recent first)
+                        files.sort(key=os.path.getmtime, reverse=True)
+                        candidate = files[0]
+
+                        # Check if file size is stable (hasn't changed)
+                        try:
+                            current_size = os.path.getsize(candidate)
+                            if current_size > 0:
+                                if current_size == last_size:
+                                    stable_count += 1
+                                    if stable_count >= 3:  # File size stable for 3 checks
+                                        filepath = candidate
+                                        break
+                                else:
+                                    stable_count = 0
+                                    last_size = current_size
+                        except OSError:
+                            pass  # File might be in use
+
+                    time.sleep(0.5)
+
+                if not filepath:
+                    raise Timeout("Timed out waiting for CSV download")
 
                 # Read the csv file
-                df_csv = pd.read_csv(filepath)[
-                    :-1
-                ]  # Ignore last line which is just a note
+                # Note: The CSV from Electric Downloads has trailing commas on data rows
+                # which creates an extra empty column. We need to handle this carefully.
+
+                # Read all lines and fix the trailing comma issue
+                with open(filepath, 'r') as f:
+                    lines = f.readlines()
+
+                # Remove trailing commas from data rows (but keep header as-is)
+                cleaned_lines = [lines[0]]  # Keep header
+                for line in lines[1:-1]:  # Process data rows (skip last note line)
+                    if line.strip().endswith(','):
+                        cleaned_lines.append(line.rstrip(',\n') + '\n')
+                    else:
+                        cleaned_lines.append(line)
+
+                # Parse the cleaned CSV
+                import io
+                df_csv = pd.read_csv(io.StringIO(''.join(cleaned_lines)))
 
                 # Create an hourly index
                 index = pd.date_range(
@@ -376,18 +461,22 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
 
                 # Reformat the data indexed by a timestamp
                 for i, row in df_csv.iterrows():
-                    df.loc[row[0], "kWh"] = df_csv.loc[i][1:25].values
+                    date = pd.Timestamp(row["Reading Date"])
+                    hourly_values = row.iloc[1:25].values
+                    for hour in range(24):
+                        timestamp = date + pd.Timedelta(hours=hour+1)
+                        df.loc[timestamp, "kWh"] = hourly_values[hour]
 
                 # Append the reformatted data
                 if last_update:
-                    df_new_rows = df_new_rows.append(df[df.index.date > last_update])
+                    df_new_rows = pd.concat([df_new_rows, df[df.index.date > last_update]])
                 else:
-                    df_new_rows = df_new_rows.append(df)
+                    df_new_rows = pd.concat([df_new_rows, df])
         finally:
             self._close_driver()
 
         if len(df_new_rows):
-            self._hourly_history = self._hourly_history.append(df_new_rows)
+            self._hourly_history = pd.concat([self._hourly_history, df_new_rows])
             self._hourly_history.index = pd.to_datetime(self._hourly_history.index)
             self._update_history()
         return df_new_rows
@@ -437,22 +526,22 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
             # (i.e., newest invoices are first).
 
             # Open Bills & Payment
-            link = self._driver.find_element_by_link_text("Bills & Payment")
+            link = self._driver.find_element(By.LINK_TEXT, "Bills & Payment")
             link.location_once_scrolled_into_view
             link.click()
             self._driver.switch_to.frame("iframe-BILLINQ")
 
             @wait_for_element
             def get_bills_table():
-                return self._driver.find_element_by_id("billsTable")
+                return self._driver.find_element(By.ID, "billsTable")
 
             @wait_for_element
             def get_bills_table_rows(bills_table):
                 rows = [
-                    [y for y in x.find_elements_by_tag_name("td")]
-                    for x in bills_table.find_element_by_tag_name(
+                    [y for y in x.find_elements(By.TAG_NAME, "td")]
+                    for x in bills_table.find_element(By.TAG_NAME,
                         "tbody"
-                    ).find_elements_by_tag_name("tr")
+                    ).find_elements(By.TAG_NAME, "tr")
                 ]
                 return rows
 
@@ -484,7 +573,7 @@ class KitchenerWilmotHydroAPI(UtilityAPI):
                 downloaded_files.append(new_filepath)
                 if not os.path.exists(new_filepath):
                     # download the pdf invoice
-                    img = row[0].find_element_by_tag_name("img")
+                    img = row[0].find_element(By.TAG_NAME, "img")
                     filepath = self.download_link(img, "pdf")
                     shutil.move(filepath, new_filepath)
         finally:
