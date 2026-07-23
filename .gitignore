@@ -14,3 +14,14 @@ geckodriver.*
 .env*
 .coverage
 *.zip
+
+# Enova scraper temporary files
+debug_*.py
+test_*.py
+*.log
+after_login.html
+smart_meter_page.html
+downloads_page.html
+find_downloads_page.py
+store_creds.sh
+enova_hourly_data_*.csv
