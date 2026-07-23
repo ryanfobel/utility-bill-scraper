@@ -12,6 +12,7 @@ from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
 )
+from selenium.webdriver.common.by import By
 
 from utility_bill_scraper import (
     Timeout,
@@ -322,19 +323,19 @@ class KitchenerUtilitiesAPI(UtilityAPI):
         self._driver.get(
             "https://ebilling.kitchener.ca/sap/bc/ui5_ui5/sap/ZUMCUI5/index.html"
         )
-        self._driver.find_element_by_id("CANCEL_BUTTON ").click()
-        self._driver.find_element_by_id("__field1").send_keys(self._user)
-        self._driver.find_element_by_id("__field0").send_keys(self._password)
-        self._driver.find_element_by_id("__button0").click()
+        self._driver.find_element(By.ID, "CANCEL_BUTTON ").click()
+        self._driver.find_element(By.ID, "__field1").send_keys(self._user)
+        self._driver.find_element(By.ID, "__field0").send_keys(self._password)
+        self._driver.find_element(By.ID, "__button0").click()
 
     def _get_header_nav_bar(self):
         result = None
         t_start = time.time()
         while time.time() - t_start < self._timeout:
             try:
-                pages = self._driver.find_element_by_id(
+                pages = self._driver.find_element(By.ID,
                     "headerNavigationBar"
-                ).find_elements_by_tag_name("li")
+                ).find_elements(By.TAG_NAME, "li")
                 keys = [x.text for x in pages]
                 result = dict(zip(keys, pages))
                 result.pop("", None)
@@ -345,12 +346,12 @@ class KitchenerUtilitiesAPI(UtilityAPI):
 
     def _get_contracts(self):
         # Pick the account (e.g., "Gas", "Water and Sewer", "Stormwater")
-        contract_table = self._driver.find_element_by_id(
+        contract_table = self._driver.find_element(By.ID,
             "ContractTable-table"
-        ).find_element_by_tag_name("tbody")
-        rows = contract_table.find_elements_by_tag_name("tr")
+        ).find_element(By.TAG_NAME, "tbody")
+        rows = contract_table.find_elements(By.TAG_NAME, "tr")
 
-        contracts = [x.find_elements_by_tag_name("td")[0] for x in rows]
+        contracts = [x.find_elements(By.TAG_NAME, "td")[0] for x in rows]
         keys = [x.text for x in contracts]
         return dict(zip(keys, contracts))
 
@@ -360,7 +361,7 @@ class KitchenerUtilitiesAPI(UtilityAPI):
         link = None
         while time.time() - t_start < self._timeout:
             try:
-                link = self._driver.find_element_by_id(
+                link = self._driver.find_element(By.ID,
                     "__table1-paginator--firstPageLink"
                 )
                 link.location_once_scrolled_into_view
@@ -378,7 +379,7 @@ class KitchenerUtilitiesAPI(UtilityAPI):
         t_start = time.time()
         while time.time() - t_start < self._timeout:
             try:
-                table = self._driver.find_element_by_id("__table1-paginator-pages")
+                table = self._driver.find_element(By.ID, "__table1-paginator-pages")
                 time.sleep(1)
                 break
             except NoSuchElementException:
@@ -386,7 +387,7 @@ class KitchenerUtilitiesAPI(UtilityAPI):
 
         if table:
             time.sleep(0.5)
-            pages = table.find_elements_by_tag_name("li")
+            pages = table.find_elements(By.TAG_NAME, "li")
             keys = [int(x.text) for x in pages]
             return dict(zip(keys, pages))
         else:
@@ -411,13 +412,13 @@ class KitchenerUtilitiesAPI(UtilityAPI):
                 # Iterate through the statements in reverse chronological order
                 # (i.e., newest statements are first).
 
-                billing_table = self._driver.find_element_by_id("__table1-table")
+                billing_table = self._driver.find_element(By.ID, "__table1-table")
 
                 rows = [
-                    [y for y in x.find_elements_by_tag_name("td")]
-                    for x in billing_table.find_element_by_tag_name(
+                    [y for y in x.find_elements(By.TAG_NAME, "td")]
+                    for x in billing_table.find_element(By.TAG_NAME,
                         "tbody"
-                    ).find_elements_by_tag_name("tr")
+                    ).find_elements(By.TAG_NAME, "tr")
                 ]
 
                 data = []
@@ -448,7 +449,7 @@ class KitchenerUtilitiesAPI(UtilityAPI):
                     downloaded_files.append(new_filepath)
                     if not os.path.exists(new_filepath):
                         # download the pdf statement
-                        for img in row[0].find_elements_by_tag_name("img"):
+                        for img in row[0].find_elements(By.TAG_NAME, "img"):
                             if img.get_property("title") == "PDF":
                                 filepath = self.download_link(img, "pdf")
                                 shutil.move(filepath, new_filepath)
@@ -499,13 +500,13 @@ class KitchenerUtilitiesAPI(UtilityAPI):
             def get_data():
                 # The Consumption history div (this contains all of the data we are interested in)
                 consumption_history = (
-                    self._driver.find_element_by_id("contractConsumptionHistory")
-                    .find_element_by_id("__table1-table")
-                    .find_element_by_tag_name("tbody")
+                    self._driver.find_element(By.ID, "contractConsumptionHistory")
+                    .find_element(By.ID, "__table1-table")
+                    .find_element(By.TAG_NAME, "tbody")
                 )
-                rows = consumption_history.find_elements_by_tag_name("tr")
+                rows = consumption_history.find_elements(By.TAG_NAME, "tr")
                 data = [
-                    [y.text for y in x.find_elements_by_tag_name("td")] for x in rows
+                    [y.text for y in x.find_elements(By.TAG_NAME, "td")] for x in rows
                 ]
                 return data
 
@@ -515,7 +516,7 @@ class KitchenerUtilitiesAPI(UtilityAPI):
             self._get_contracts()[contract].click()
 
             # Click on the "Consumption History" tab
-            link = self._driver.find_element_by_id("contractDetailNavigationBarItem2")
+            link = self._driver.find_element(By.ID, "contractDetailNavigationBarItem2")
             link.location_once_scrolled_into_view
             link.click()
             time.sleep(0.5)
