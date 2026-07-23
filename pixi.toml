@@ -1,0 +1,21 @@
+[workspace]
+name = "utility-bill-scraper"
+version = "0.1.0"
+description = "Scrape utility bills from Ontario utility portals"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "osx-64", "linux-64"]
+
+[dependencies]
+python = ">=3.9,<3.13"
+numpy = ">=1.16"
+pandas = ">=1.1.0"
+selenium = ">=4.0"
+arrow = ">=1.2.0"
+beautifulsoup4 = ">=4.6.0"
+matplotlib = ">=3.2"
+pip = "*"
+google-api-python-client = ">=2.198.0,<3"
+python-dotenv = ">=1.2.2,<2"
+
+[tasks]
+scrape-enova = "python -c 'import sys; sys.path.insert(0, \"src\"); from utility_bill_scraper.canada.on.kitchener_wilmot_hydro import KitchenerWilmotHydroAPI; print(\"Ready to scrape\")'"
