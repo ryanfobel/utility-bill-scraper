@@ -3,30 +3,93 @@
 Scrape 2022-2024 hourly electricity data from Enova Power.
 
 Usage:
+  # Store credentials in keyring (one-time setup):
+  pixi run python scrape_2022_2024.py --store-credentials
+
+  # Run scraper:
+  pixi run python scrape_2022_2024.py
+
+  # Or use environment variables:
   export ENOVA_USERNAME='your_username'
   export ENOVA_PASSWORD='your_password'
   pixi run python scrape_2022_2024.py
 """
 import sys
 import os
+import argparse
+import getpass
 sys.path.insert(0, "src")
+
+try:
+    import keyring
+except ImportError:
+    print("❌ keyring not installed. Run: pixi add keyring")
+    sys.exit(1)
 
 from utility_bill_scraper.canada.on.kitchener_wilmot_hydro import KitchenerWilmotHydroAPI
 
 
+SERVICE_NAME = "enova-power"
+
+
+def store_credentials():
+    """Store credentials in system keyring."""
+    print("Store Enova Power credentials in system keyring")
+    print()
+    username = input("Username: ")
+    password = getpass.getpass("Password: ")
+
+    keyring.set_password(SERVICE_NAME, "username", username)
+    keyring.set_password(SERVICE_NAME, username, password)
+
+    print()
+    print("✓ Credentials stored in keyring")
+    print()
+
+
+def get_credentials():
+    """Get credentials from keyring or environment variables."""
+    # Try environment variables first
+    username = os.getenv("ENOVA_USERNAME")
+    password = os.getenv("ENOVA_PASSWORD")
+
+    if username and password:
+        return username, password
+
+    # Try keyring
+    username = keyring.get_password(SERVICE_NAME, "username")
+    if username:
+        password = keyring.get_password(SERVICE_NAME, username)
+        if password:
+            return username, password
+
+    return None, None
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Scrape Enova Power hourly data")
+    parser.add_argument("--store-credentials", action="store_true",
+                       help="Store credentials in system keyring")
+    args = parser.parse_args()
+
+    if args.store_credentials:
+        store_credentials()
+        return 0
+
     print("="*60)
     print("Enova Power - Hourly Data Scraper (2022-2024)")
     print("="*60)
     print()
 
-    username = os.getenv("ENOVA_USERNAME")
-    password = os.getenv("ENOVA_PASSWORD")
+    username, password = get_credentials()
 
     if not username or not password:
         print("❌ Missing credentials!")
         print()
-        print("Set environment variables:")
+        print("Option 1: Store in keyring (recommended):")
+        print("  pixi run python scrape_2022_2024.py --store-credentials")
+        print()
+        print("Option 2: Use environment variables:")
         print("  export ENOVA_USERNAME='your_username'")
         print("  export ENOVA_PASSWORD='your_password'")
         print()
@@ -34,6 +97,7 @@ def main():
 
     print(f"Username: {username}")
     print("Password: {'*' * len(password)}")
+    print("Source: " + ("environment" if os.getenv("ENOVA_USERNAME") else "keyring"))
     print()
     print("Date range: 2022-01-01 to 2024-12-31")
     print()

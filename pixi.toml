@@ -16,6 +16,7 @@ matplotlib = ">=3.2"
 pip = "*"
 google-api-python-client = ">=2.198.0,<3"
 python-dotenv = ">=1.2.2,<2"
+keyring = ">=25.7.0,<26"
 
 [tasks]
 scrape-enova = "python -c 'import sys; sys.path.insert(0, \"src\"); from utility_bill_scraper.canada.on.kitchener_wilmot_hydro import KitchenerWilmotHydroAPI; print(\"Ready to scrape\")'"
